@@ -294,11 +294,7 @@ module Spans = struct
   type freq_t = (string * int) list [@@deriving yojson]
 
   let most_frequent n =
-    let span_copy =
-      Xapi_stdext_threads.Threadext.Mutex.execute lock (fun () ->
-          Hashtbl.copy spans
-      )
-    in
+    let span_copy = Hashtbl.copy spans in
     let count_span_names (seq : Span.t Seq.t) =
       let freq_tbl = Hashtbl.create 100 in
       Seq.iter
