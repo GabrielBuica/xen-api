@@ -16,6 +16,18 @@ module D = Debug.Make (struct let name = "tracing" end)
 module Delay = Xapi_stdext_threads.Threadext.Delay
 open D
 
+let take n xs =
+  let rec loop n head tail =
+    match tail with
+    | [] ->
+        List.rev head
+    | _ when n <= 0 ->
+        List.rev head
+    | t :: ts ->
+        loop (n - 1) (t :: head) ts
+  in
+  loop n [] xs
+
 module W3CBaggage = struct
   module Key = struct
     let is_valid_key str =
@@ -279,55 +291,39 @@ module Spans = struct
 
   let spans = Hashtbl.create 100
 
-  let frequency_tbl = Hashtbl.create 100
-
-  let incr_frequency_tbl ~(span : Span.t) =
-    match Hashtbl.find_opt frequency_tbl span.name with
-    | None ->
-        Hashtbl.add frequency_tbl span.name 1
-    | Some v ->
-        Hashtbl.replace frequency_tbl span.name (succ v)
-
-  let decr_frequency_tbl ~(span : Span.t) =
-    match Hashtbl.find_opt frequency_tbl span.name with
-    | None ->
-        ()
-    | Some v ->
-        if pred v = 0 then
-          Hashtbl.remove frequency_tbl span.name
-        else
-          Hashtbl.replace frequency_tbl span.name (pred v)
+  type freq_t = (string * int) list [@@deriving yojson]
 
   let most_frequent n =
-    let lst =
-      frequency_tbl
-      |> Hashtbl.to_seq
-      |> List.of_seq
-      |> List.sort (fun x y -> compare (snd x) (snd y))
-      |> List.rev
+    let span_copy =
+      Xapi_stdext_threads.Threadext.Mutex.execute lock (fun () ->
+          Hashtbl.copy spans
+      )
     in
-    let rec first_n_of_lst acc n lst =
-      match lst with
-      | [] ->
-          acc
-      | h :: t ->
-          let acc' =
-            match acc with
-            | "" ->
-                Printf.sprintf "%s:%i" (fst h) (snd h)
-            | _ ->
-                Printf.sprintf "%s; %s:%i" acc (fst h) (snd h)
+    let count_span_names (seq : Span.t Seq.t) =
+      let freq_tbl = Hashtbl.create 100 in
+      Seq.iter
+        (fun (span : Span.t) ->
+          let span_count =
+            Hashtbl.find_opt freq_tbl span.name |> Option.value ~default:0
           in
-          if n = 1 then
-            first_n_of_lst acc' (n - 1) []
-          else
-            first_n_of_lst acc' (n - 1) t
+          Hashtbl.replace freq_tbl span.name (span_count + 1)
+        )
+        seq ;
+      Hashtbl.fold (fun span count lst -> (span, count) :: lst) freq_tbl []
+      |> List.sort (fun (_, c1) (_, c2) -> compare c1 c2)
     in
-    match first_n_of_lst "" n lst with
-    | "" ->
-        ()
-    | s ->
-        debug "Most frequent %i span names: %s" n s
+    let freq_list =
+      span_copy
+      |> Hashtbl.to_seq_values
+      |> List.of_seq
+      |> List.flatten
+      |> List.to_seq
+      |> count_span_names
+      |> List.rev
+      |> take n
+    in
+    debug "Most frequent %i span names: %s" n
+      (Yojson.Safe.to_string (freq_t_to_yojson freq_list))
 
   let max_spans = ref 1000
 
@@ -349,18 +345,17 @@ module Spans = struct
         match Hashtbl.find_opt spans key with
         | None ->
             if Hashtbl.length spans < !max_traces then (
-              incr_frequency_tbl ~span ;
-              Hashtbl.add spans key [span]
+              Hashtbl.add spans key [span] ;
+              most_frequent 3
             ) else (
               debug "%s exceeded max traces when adding to span table"
                 __FUNCTION__ ;
               most_frequent 10
             )
         | Some span_list ->
-            if List.length span_list < !max_spans then (
-              incr_frequency_tbl ~span ;
+            if List.length span_list < !max_spans then
               Hashtbl.replace spans key (span :: span_list)
-            ) else (
+            else (
               debug "%s exceeded max traces when adding to span table"
                 __FUNCTION__ ;
               most_frequent 10
@@ -376,15 +371,7 @@ module Spans = struct
             None
         | Some span_list ->
             ( match
-                List.filter
-                  (fun x ->
-                    if x.Span.context <> span.context then
-                      true
-                    else
-                      let _ = decr_frequency_tbl ~span:x in
-                      false
-                  )
-                  span_list
+                List.filter (fun x -> x.Span.context <> span.context) span_list
               with
             | [] ->
                 Hashtbl.remove spans key
