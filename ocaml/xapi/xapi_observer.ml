@@ -62,23 +62,23 @@ end
 module Observer : ObserverInterface = struct
   let create ~__context ~uuid ~name_label ~attributes ~endpoints ~enabled =
     debug "Observer.create %s" uuid ;
-    Tracing.create ~uuid ~name_label ~attributes ~endpoints ~enabled
+    Tracing_components.create ~uuid ~name_label ~attributes ~endpoints ~enabled
 
   let destroy ~__context ~uuid =
     debug "Observer.destroy %s" uuid ;
-    Tracing.destroy ~uuid
+    Tracing_components.destroy ~uuid
 
   let set_enabled ~__context ~uuid ~enabled =
     debug "Observer.set_enabled %s" uuid ;
-    Tracing.set ~uuid ~enabled ()
+    Tracing_components.set ~uuid ~enabled ()
 
   let set_attributes ~__context ~uuid ~attributes =
     debug "Observer.set_attributes %s" uuid ;
-    Tracing.set ~uuid ~attributes ()
+    Tracing_components.set ~uuid ~attributes ()
 
   let set_endpoints ~__context ~uuid ~endpoints =
     debug "Observer.set_endpoints %s" uuid ;
-    Tracing.set ~uuid ~endpoints ()
+    Tracing_components.set ~uuid ~endpoints ()
 
   let init ~__context =
     debug "Observer.init" ;
@@ -94,11 +94,11 @@ module Observer : ObserverInterface = struct
 
   let set_max_spans ~__context ~spans =
     debug "Observer.set_max_spans" ;
-    Tracing.Spans.set_max_spans spans
+    Tracing_components.Spans.set_max_spans spans
 
   let set_max_traces ~__context ~traces =
     debug "Observer.set_max_traces" ;
-    Tracing.Spans.set_max_traces traces
+    Tracing_components.Spans.set_max_traces traces
 
   let set_max_file_size ~__context ~file_size =
     debug "Observer.set_max_file_size" ;
@@ -243,11 +243,13 @@ module ObserverConfig = struct
 
   let zipkin_endpoints endpoints =
     (*For now, this accepts all endpoints except bugtool. This will change as more endpoints are added*)
-    List.filter (fun endpoint -> endpoint <> Tracing.bugtool_name) endpoints
+    List.filter
+      (fun endpoint -> endpoint <> Tracing_components.bugtool_name)
+      endpoints
 
   let rec bugtool_endpoint endpoints =
     match endpoints with
-    | x :: _ when x = Tracing.bugtool_name ->
+    | x :: _ when x = Tracing_components.bugtool_name ->
         Some (Tracing.Export.Destination.File.get_trace_log_dir ())
     | _ :: t ->
         bugtool_endpoint t
@@ -413,7 +415,7 @@ let assert_valid_endpoints ~__context endpoints =
         false
   in
   let validate_endpoint = function
-    | str when str = Tracing.bugtool_name ->
+    | str when str = Tracing_components.bugtool_name ->
         true
     | url -> (
       try

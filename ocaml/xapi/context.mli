@@ -78,7 +78,7 @@ val string_of_task : t -> string
 
 val string_of_task_and_tracing : t -> string
 
-val tracing_of_dbg : string -> string * Tracing.Span.t option
+val tracing_of_dbg : string -> string * Tracing_components.Span.t option
 
 val task_in_database : t -> bool
 (** [task_in_database __context] indicates if [get_task_id __context] corresponds to a task stored in database or
@@ -144,8 +144,8 @@ val get_user_agent : t -> string option
 
 val complete_tracing : ?error:exn * string -> t -> unit
 
-val tracing_of : t -> Tracing.Span.t option
+val tracing_of : t -> Tracing_components.Span.t option
 
 val with_tracing : t -> string -> (t -> 'a) -> 'a
 
-val set_client_span : t -> Tracing.Span.t option
+val set_client_span : t -> Tracing_components.Span.t option

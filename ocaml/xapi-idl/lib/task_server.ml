@@ -80,7 +80,7 @@ functor
       ; id: id  (** unique task id *)
       ; ctime: float  (** created timestamp *)
       ; dbg: string  (** token sent by client *)
-      ; mutable tracing: Tracing.Span.t option
+      ; mutable tracing: Tracing_components.Span.t option
       ; mutable state: Interface.Task.state  (** current completion state *)
       ; mutable subtasks: (string * Interface.Task.state) list
             (** one level of "subtasks" *)
@@ -134,10 +134,13 @@ functor
         | Some t, _ ->
             Some t
         | None, Some traceparent ->
-            let spancontext = Tracing.SpanContext.of_traceparent traceparent in
+            let spancontext =
+              Tracing_components.SpanContext.of_traceparent traceparent
+            in
             Option.map
               (fun tp ->
-                Tracing.Tracer.span_of_span_context tp dbg'.Debuginfo.log
+                Tracing_components.Tracer.span_of_span_context tp
+                  dbg'.Debuginfo.log
               )
               spancontext
         | _ ->

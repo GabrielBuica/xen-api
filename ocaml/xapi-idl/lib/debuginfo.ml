@@ -12,7 +12,7 @@
  * GNU Lesser General Public License for more details.
  *)
 
-type t = {log: string; tracing: Tracing.Span.t option}
+type t = {log: string; tracing: Tracing_components.Span.t option}
 
 let separator = '\n'
 
@@ -20,7 +20,7 @@ let make ~log ~tracing = {log; tracing}
 
 (* This must support the upgrade case, where no tracing data is included *)
 let of_string s =
-  let open Tracing in
+  let open Tracing_components in
   match String.split_on_char separator s with
   | [log; traceparent] ->
       let spancontext = SpanContext.of_traceparent traceparent in
@@ -38,7 +38,8 @@ let to_string t =
   Option.fold ~none:t.log
     ~some:(fun span ->
       let traceparent =
-        Tracing.Span.get_context span |> Tracing.SpanContext.to_traceparent
+        Tracing_components.Span.get_context span
+        |> Tracing_components.SpanContext.to_traceparent
       in
       Printf.sprintf "%s%c%s" (filter_separator t.log) separator
         (filter_separator traceparent)
@@ -56,7 +57,7 @@ let with_dbg ?(with_thread = false) ~module_name ~name ~dbg f =
     let name =
       match module_name with "" -> name | _ -> module_name ^ "." ^ name
     in
-    Tracing.with_tracing ~parent:di.tracing ~name (fun span ->
+    Tracing_components.with_tracing ~parent:di.tracing ~name (fun span ->
         match span with Some _ -> f {di with tracing= span} | None -> f di
     )
   in

@@ -1,62 +1,63 @@
 (library
  (name xcp)
  (public_name xapi-idl)
- (modules (:standard \ scheduler task_server updates))
+ (modules
+  (:standard \ scheduler task_server updates))
  (libraries
-   astring
-   cmdliner
-   cohttp
-   cohttp-posix
-   (re_export dune-build-info)
-   fd-send-recv
-   logs
-   message-switch-core
-   message-switch-unix
-   mtime
-   mtime.clock.os
-   ppx_sexp_conv.runtime-lib
-   re
-   rpclib.core
-   rpclib.json
-   rpclib.xml
-   result
-   rresult
-   sexplib
-   sexplib0
-   threads.posix
-   tracing
-   unix
-   uri
-   uuidm
-   xapi-backtrace
-   xapi-consts
-   xapi-log
-   xapi-open-uri
-   xapi-stdext-pervasives
-   xapi-stdext-threads
-   xapi-inventory
-   xmlm
- )
+  astring
+  cmdliner
+  cohttp
+  cohttp-posix
+  (re_export dune-build-info)
+  fd-send-recv
+  logs
+  message-switch-core
+  message-switch-unix
+  mtime
+  mtime.clock.os
+  ppx_sexp_conv.runtime-lib
+  re
+  rpclib.core
+  rpclib.json
+  rpclib.xml
+  result
+  rresult
+  sexplib
+  sexplib0
+  threads.posix
+  unix
+  uri
+  uuidm
+  xapi-backtrace
+  xapi-consts
+  xapi-log
+  xapi-open-uri
+  xapi-stdext-pervasives
+  xapi-stdext-threads
+  xapi-tracing-components
+  xapi-inventory
+  xmlm)
  (wrapped false)
- (preprocess (pps ppx_sexp_conv ppx_deriving_rpc)))
+ (preprocess
+  (pps ppx_sexp_conv ppx_deriving_rpc)))
 
 (library
  (name xcp_updates)
  (public_name xapi-idl.updates)
  (modules updates task_server scheduler)
  (libraries
-   mtime
-   mtime.clock.os
-   rpclib.core
-   rpclib.json
-   sexplib
-   sexplib0
-   threads.posix
-   xapi-backtrace
-   xapi-idl
-   xapi-log
-   xapi-stdext-pervasives
-   xapi-stdext-threads
- )
+  mtime
+  mtime.clock.os
+  rpclib.core
+  rpclib.json
+  sexplib
+  sexplib0
+  threads.posix
+  xapi-backtrace
+  xapi-idl
+  xapi-log
+  xapi-stdext-pervasives
+  xapi-stdext-threads)
  (wrapped false)
- (preprocess (pps ppx_deriving_rpc)))
+ (preprocess
+  (pps ppx_deriving_rpc)))

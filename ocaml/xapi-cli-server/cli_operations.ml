@@ -7969,7 +7969,8 @@ module Observer = struct
     in
     let endpoints =
       List.assoc_opt "endpoints" params
-      |> Option.fold ~none:[Tracing.bugtool_name]
+      |> Option.fold
+           ~none:[Tracing_components.bugtool_name]
            ~some:(String.split_on_char ',')
     in
     let components =

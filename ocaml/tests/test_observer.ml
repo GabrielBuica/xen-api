@@ -12,6 +12,7 @@
  * GNU Lesser General Public License for more details.
  *)
 open Tracing
+open Tracing_components
 
 module D = Debug.Make (struct let name = "test_observer" end)
 
@@ -62,17 +63,15 @@ end
 
 module TracerProvider = struct
   let assert_num_observers ~__context x =
-    let providers = Tracing.get_tracer_providers () in
+    let providers = get_tracer_providers () in
     Alcotest.(check int)
       (Printf.sprintf "%d provider(s) exists in lib " x)
       x (List.length providers)
 
   let find_provider_exn ~name =
-    let providers = Tracing.get_tracer_providers () in
+    let providers = get_tracer_providers () in
     match
-      List.find_opt
-        (fun x -> Tracing.TracerProvider.get_name_label x = name)
-        providers
+      List.find_opt (fun x -> TracerProvider.get_name_label x = name) providers
     with
     | Some provider ->
         provider
@@ -83,11 +82,11 @@ module TracerProvider = struct
     let provider = find_provider_exn ~name in
     Alcotest.(check bool)
       "Provider disabled" false
-      (Tracing.TracerProvider.get_enabled provider)
+      (TracerProvider.get_enabled provider)
 
   let assert_mandatory_attributes ~name =
     let provider = find_provider_exn ~name in
-    let tags = Tracing.TracerProvider.get_attributes provider in
+    let tags = TracerProvider.get_attributes provider in
     List.iter
       (fun x ->
         try
@@ -106,7 +105,7 @@ module TracerProvider = struct
   let check_endpoints ~name ~endpoints =
     let provider = find_provider_exn ~name in
     let provider_endpoints =
-      Tracing.TracerProvider.get_endpoints provider
+      TracerProvider.get_endpoints provider
       |> List.map (fun endpoint ->
              match endpoint with
              | Bugtool ->

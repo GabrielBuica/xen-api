@@ -26,12 +26,14 @@ let with_dbg ~name ~dbg f =
   Debug.with_thread_associated di.log
     (fun () ->
       let name = "SMAPIv2." ^ name in
-      let tracer = Tracing.get_tracer ~name in
-      let span = Tracing.Tracer.start ~tracer ~name ~parent:di.tracing () in
+      let tracer = Tracing_components.get_tracer ~name in
+      let span =
+        Tracing_components.Tracer.start ~tracer ~name ~parent:di.tracing ()
+      in
       match span with
       | Ok span_context ->
           let result = f {di with tracing= span_context} in
-          let _ = Tracing.Tracer.finish span_context in
+          let _ = Tracing_components.Tracer.finish span_context in
           result
       | Error e ->
           D.warn "Failed to start tracing: %s" (Printexc.to_string e) ;

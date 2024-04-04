@@ -137,7 +137,7 @@ let do_rpcs _req s username password minimal cmd session args =
   try
     let generic_rpc = get_rpc () in
     (* NB the request we've received is for the /cli. We need an XMLRPC request for the API *)
-    Tracing.with_tracing ~name:("xe " ^ cmdname) @@ fun tracing ->
+    Tracing_components.with_tracing ~name:("xe " ^ cmdname) @@ fun tracing ->
     let req = Xmlrpc_client.xmlrpc ~version:"1.1" ~tracing "/" in
     let rpc = generic_rpc req s in
     if do_forward then

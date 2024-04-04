@@ -1,0 +1,4 @@
+(library
+ (name tracing_components)
+ (public_name xapi-tracing-components)
+ (libraries uri xapi-log xapi-stdext-threads))

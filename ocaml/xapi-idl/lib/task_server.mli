@@ -120,7 +120,7 @@ module Task : functor (Interface : INTERFACE) -> sig
   *)
   val destroy_on_finish : task_handle -> unit
 
-  val tracing : task_handle -> Tracing.Span.t option
+  val tracing : task_handle -> Tracing_components.Span.t option
 
-  val set_tracing : task_handle -> Tracing.Span.t option -> unit
+  val set_tracing : task_handle -> Tracing_components.Span.t option -> unit
 end

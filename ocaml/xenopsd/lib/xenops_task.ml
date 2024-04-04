@@ -83,8 +83,8 @@ let traceparent_header_of_task t =
     (fun tracing ->
       ( "traceparent"
       , tracing
-        |> Tracing.Span.get_context
-        |> Tracing.SpanContext.to_traceparent
+        |> Tracing_components.Span.get_context
+        |> Tracing_components.SpanContext.to_traceparent
       )
     )
     (Xenops_task.tracing t)

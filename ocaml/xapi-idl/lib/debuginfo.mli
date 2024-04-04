@@ -12,9 +12,9 @@
  * GNU Lesser General Public License for more details.
  *)
 
-type t = {log: string; tracing: Tracing.Span.t option}
+type t = {log: string; tracing: Tracing_components.Span.t option}
 
-val make : log:string -> tracing:Tracing.Span.t option -> t
+val make : log:string -> tracing:Tracing_components.Span.t option -> t
 
 val of_string : string -> t
 

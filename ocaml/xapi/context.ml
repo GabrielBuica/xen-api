@@ -44,14 +44,14 @@ type t = {
   ; origin: origin
   ; database: Db_ref.t
   ; dbg: string
-  ; mutable tracing: Tracing.Span.t option
+  ; mutable tracing: Tracing_components.Span.t option
   ; client: Http_svr.client option
   ; mutable test_rpc: (Rpc.call -> Rpc.response) option
   ; mutable test_clusterd_rpc: (Rpc.call -> Rpc.response) option
 }
 
 let complete_tracing ?error __context =
-  ( match Tracing.Tracer.finish ?error __context.tracing with
+  ( match Tracing_components.Tracer.finish ?error __context.tracing with
   | Ok _ ->
       ()
   | Error e ->
@@ -64,7 +64,10 @@ let tracing_of __context = __context.tracing
 let set_client_span __context =
   let span =
     Option.map
-      (fun span -> Tracing.Span.set_span_kind span Tracing.SpanKind.Client)
+      (fun span ->
+        Tracing_components.Span.set_span_kind span
+          Tracing_components.SpanKind.Client
+      )
       __context.tracing
   in
   __context.tracing <- span ;
@@ -212,11 +215,11 @@ let make_dbg http_other_config task_name task_id =
       (Ref.really_pretty_and_small task_id)
 
 let span_kind_of_parent parent =
-  let open Tracing in
+  let open Tracing_components in
   Option.fold ~none:SpanKind.Internal ~some:(fun _ -> SpanKind.Server) parent
 
 let parent_of_origin (origin : origin) span_name =
-  let open Tracing in
+  let open Tracing_components in
   let ( let* ) = Option.bind in
   match origin with
   | Http (req, _) ->
@@ -257,7 +260,7 @@ let make_attributes ?task_name ?task_id ?task_uuid ?session_id ?origin () =
   |> List.concat
 
 let start_tracing_helper ?(span_attributes = []) parent_fn task_name =
-  let open Tracing in
+  let open Tracing_components in
   let span_details_from_task_name task_name =
     let uuid_length = 36 in
     let dispatch_system_is_alive = "dispatch:system.isAlive:" in
@@ -443,7 +446,7 @@ let get_user_agent context =
   match context.origin with Internal -> None | Http (rq, _) -> rq.user_agent
 
 let with_tracing context name f =
-  let open Tracing in
+  let open Tracing_components in
   let parent = context.tracing in
   match start_tracing_helper (fun _ -> parent) name with
   | Some _ as span ->

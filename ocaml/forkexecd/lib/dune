@@ -3,15 +3,15 @@
  (public_name forkexec)
  (wrapped false)
  (libraries
-   astring
-   fd-send-recv
-   rpclib.core
-   rpclib.json
-   uuid
-   xapi-backtrace
-   xapi-log
-   xapi-stdext-pervasives
-   xapi-stdext-unix
- )
+  astring
+  fd-send-recv
+  rpclib.core
+  rpclib.json
+  uuid
+  xapi-backtrace
+  xapi-log
+  xapi-stdext-pervasives
+  xapi-stdext-unix
+  xapi-tracing-components)
  (preprocess
   (pps ppx_deriving_rpc)))

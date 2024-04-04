@@ -51,7 +51,7 @@ let connect ?session_id ?task_id ?subtask_of path =
 let xmlrpc ?frame ?version ?keep_alive ?task_id ?cookie ?length ?auth
     ?subtask_of ?query ?body ?(tracing = None) path =
   let traceparent =
-    let open Tracing in
+    let open Tracing_components in
     Option.map
       (fun span -> Span.get_context span |> SpanContext.to_traceparent)
       tracing
