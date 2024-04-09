@@ -363,7 +363,8 @@ let exec_xmlrpc ~dbg ?context:_ ?(needs_session = true) (driver : string)
                       ~component:Xapi_observer_components.SMApi ~traceparent
                       ~exe ~args
               in
-              Forkhelpers.execute_command_get_output ?env exe args
+              Forkhelpers.execute_command_get_output ?traceparent:di.tracing
+                ?env exe args
             in
             try (Xml.parse_string output, stderr)
             with e ->

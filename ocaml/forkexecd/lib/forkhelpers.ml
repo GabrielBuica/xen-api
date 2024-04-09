@@ -36,6 +36,10 @@ let test_path =
 
 let runtime_path = Option.value ~default:"/var" test_path
 
+let with_tracing ?traceparent ~name f =
+  let name = "forkhelpers" ^ "." ^ name in
+  Tracing.with_tracing ?parent:traceparent ~name f
+
 let finally = Xapi_stdext_pervasives.Pervasiveext.finally
 
 type pidty = Unix.file_descr * int
@@ -300,8 +304,9 @@ let safe_close_and_exec ?env stdin stdout stderr
     )
     close_fds
 
-let execute_command_get_output_inner ?env ?stdin ?(syslog_stdout = NoSyslogging)
-    ?(redirect_stderr_to_stdout = false) ?(timeout = -1.0) cmd args =
+let execute_command_get_output_inner ?traceparent ?env ?stdin
+    ?(syslog_stdout = NoSyslogging) ?(redirect_stderr_to_stdout = false)
+    ?(timeout = -1.0) cmd args =
   let to_close = ref [] in
   let close fd =
     if List.mem fd !to_close then (
@@ -357,10 +362,12 @@ let execute_command_get_output_inner ?env ?stdin ?(syslog_stdout = NoSyslogging)
     )
     (fun () -> List.iter Unix.close !to_close)
 
-let execute_command_get_output ?env ?(syslog_stdout = NoSyslogging)
+let execute_command_get_output ?traceparent ?env ?(syslog_stdout = NoSyslogging)
     ?(redirect_stderr_to_stdout = false) ?timeout cmd args =
-  execute_command_get_output_inner ?env ?stdin:None ?timeout ~syslog_stdout
-    ~redirect_stderr_to_stdout cmd args
+  with_tracing ~traceparent ~name:"execute_command_get_output"
+  @@ fun traceparent ->
+  execute_command_get_output_inner ?traceparent ?env ?stdin:None ?timeout
+    ~syslog_stdout ~redirect_stderr_to_stdout cmd args
 
 let execute_command_get_output_send_stdin ?env ?(syslog_stdout = NoSyslogging)
     ?(redirect_stderr_to_stdout = false) ?timeout cmd args stdin =
