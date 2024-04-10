@@ -157,7 +157,8 @@ let temp_dir =
 (** Creates a temporary file and opens it for logging. The fd is passed to the function
     'f'. The logfile is guaranteed to be closed afterwards, and unlinked if either the delete flag is set or the call fails. If the
     function 'f' throws an error then the log file contents are read in *)
-let with_logfile_fd ?(delete = true) prefix f =
+let with_logfile_fd ?traceparent ?(delete = true) prefix f =
+  with_tracing ~traceparent ~name:"with_logfile_fd" @@ fun _ ->
   let logfile = Filename.temp_file ?temp_dir prefix ".log" in
   let read_logfile () =
     let contents = Xapi_stdext_unix.Unixext.string_of_file logfile in
@@ -182,9 +183,10 @@ type syslog_stdout =
 
 (** Safe function which forks a command, closing all fds except a whitelist and
     having performed some fd operations in the child *)
-let safe_close_and_exec ?env stdin stdout stderr
+let safe_close_and_exec ?traceparent ?env stdin stdout stderr
     (fds : (string * Unix.file_descr) list) ?(syslog_stdout = NoSyslogging)
     ?(redirect_stderr_to_stdout = false) (cmd : string) (args : string list) =
+  with_tracing ~traceparent ~name:"safe_close_and_exec" @@ fun _ ->
   let sock =
     Fecomms.open_unix_domain_sock_client (runtime_path ^ "/xapi/forker/main")
   in
@@ -307,6 +309,8 @@ let safe_close_and_exec ?env stdin stdout stderr
 let execute_command_get_output_inner ?traceparent ?env ?stdin
     ?(syslog_stdout = NoSyslogging) ?(redirect_stderr_to_stdout = false)
     ?(timeout = -1.0) cmd args =
+  with_tracing ~traceparent ~name:"execute_command_get_output_inner"
+  @@ fun traceparent ->
   let to_close = ref [] in
   let close fd =
     if List.mem fd !to_close then (
@@ -329,7 +333,7 @@ let execute_command_get_output_inner ?traceparent ?env ?stdin
         with_logfile_fd "execute_command_get_out" (fun out_fd ->
             with_logfile_fd "execute_command_get_err" (fun err_fd ->
                 let sock, pid =
-                  safe_close_and_exec ?env
+                  safe_close_and_exec ?traceparent ?env
                     (Option.map (fun (_, fd, _) -> fd) stdinandpipes)
                     (Some out_fd) (Some err_fd) [] ~syslog_stdout
                     ~redirect_stderr_to_stdout cmd args
@@ -369,7 +373,10 @@ let execute_command_get_output ?traceparent ?env ?(syslog_stdout = NoSyslogging)
   execute_command_get_output_inner ?traceparent ?env ?stdin:None ?timeout
     ~syslog_stdout ~redirect_stderr_to_stdout cmd args
 
-let execute_command_get_output_send_stdin ?env ?(syslog_stdout = NoSyslogging)
-    ?(redirect_stderr_to_stdout = false) ?timeout cmd args stdin =
-  execute_command_get_output_inner ?env ~stdin ~syslog_stdout
+let execute_command_get_output_send_stdin ?traceparent ?env
+    ?(syslog_stdout = NoSyslogging) ?(redirect_stderr_to_stdout = false)
+    ?timeout cmd args stdin =
+  with_tracing ~traceparent ~name:"execute_command_get_output_send_stdin"
+  @@ fun traceparent ->
+  execute_command_get_output_inner ?traceparent ?env ~stdin ~syslog_stdout
     ~redirect_stderr_to_stdout ?timeout cmd args
