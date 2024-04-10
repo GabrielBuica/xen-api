@@ -12,29 +12,27 @@
 * GNU Lesser General Public License for more details.
 *)
 
-module Export : sig
-  val set_export_interval : float -> unit
+val set_export_interval : float -> unit
 
-  val set_host_id : string -> unit
+val set_host_id : string -> unit
 
-  val set_service_name : string -> unit
+val set_service_name : string -> unit
 
-  module Destination : sig
-    module File : sig
-      val set_max_file_size : int -> unit
+module Destination : sig
+  module File : sig
+    val set_max_file_size : int -> unit
 
-      val set_trace_log_dir : string -> unit
+    val set_trace_log_dir : string -> unit
 
-      val get_trace_log_dir : unit -> string
+    val get_trace_log_dir : unit -> string
 
-      val set_compress_tracing_files : bool -> unit
-    end
+    val set_compress_tracing_files : bool -> unit
+  end
 
-    val flush_spans : unit -> unit
+  val flush_spans : unit -> unit
 
-    module Http : sig
-      val export : url:Uri.t -> string -> (unit, exn) result
-    end
+  module Http : sig
+    val export : url:Uri.t -> string -> (unit, exn) result
   end
 end
 
