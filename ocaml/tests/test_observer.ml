@@ -39,8 +39,8 @@ let trace_log_dir ?(test_name = "") () =
     (Printf.sprintf "%s/var/log/dt/zipkinv2/json/" test_name)
 
 let () =
-  Export.Destination.File.set_trace_log_dir (trace_log_dir ()) ;
-  Export.set_service_name "unit_tests" ;
+  Destination.File.set_trace_log_dir (trace_log_dir ()) ;
+  set_service_name "unit_tests" ;
   set_observe false
 
 module Xapi_DB = struct
@@ -337,7 +337,7 @@ let test_file_export_writes () =
   let test_trace_log_dir =
     trace_log_dir ~test_name:"test_file_export_writes" ()
   in
-  Export.Destination.File.set_trace_log_dir test_trace_log_dir ;
+  Destination.File.set_trace_log_dir test_trace_log_dir ;
   let __context = Test_common.make_test_database () in
   let self = test_create ~__context ~enabled:true () in
   clear_dir ~test_trace_log_dir () ;
@@ -346,7 +346,7 @@ let test_file_export_writes () =
       match span with
       | Ok x -> (
           let _ = Tracer.finish x in
-          Export.Destination.flush_spans () ;
+          Destination.flush_spans () ;
           Alcotest.(check bool)
             "tracing files written to disk when tracing enabled by default"
             false
@@ -364,7 +364,7 @@ let test_file_export_writes () =
           match span with
           | Ok x ->
               let _ = Tracer.finish x in
-              Export.Destination.flush_spans () ;
+              Destination.flush_spans () ;
               Alcotest.(check bool)
                 "tracing files not written when tracing disabled" true
                 (is_dir_empty ~test_trace_log_dir)
@@ -423,7 +423,7 @@ let test_hashtbl_leaks () =
         (Tracer.finished_span_hashtbl_is_empty ())
         false ;
 
-      Export.Destination.flush_spans () ;
+      Destination.flush_spans () ;
       Alcotest.(check bool)
         "Span export clears finished_spans hashtable"
         (Tracer.finished_span_hashtbl_is_empty ())

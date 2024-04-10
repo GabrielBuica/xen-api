@@ -18,9 +18,7 @@ let _ =
       let url = Uri.of_string url_string in
       let submit_json json =
         if json <> "" then
-          let result =
-            Tracing_export.Export.Destination.Http.export ~url json
-          in
+          let result = Tracing_export.Destination.Http.export ~url json in
           match result with
           | Ok _ ->
               ()
