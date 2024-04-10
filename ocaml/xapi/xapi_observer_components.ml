@@ -106,17 +106,10 @@ let env_exe_args_of ~component ~traceparent ~exe ~args =
       [
         Forkhelpers.default_path_env_pair
       ; Env_record.to_string_array
-          ([
-             Env_record.pair ("OBSERVER_CONFIG_DIR", dir_name_value)
-           ; Env_record.pair ("PYTHONPATH", Filename.dirname exe)
-           ]
-          @
-          match traceparent with
-          | None ->
-              []
-          | Some traceparent ->
-              [Env_record.pair ("TRACEPARENT", traceparent)]
-          )
+          [
+            Env_record.pair ("OBSERVER_CONFIG_DIR", dir_name_value)
+          ; Env_record.pair ("PYTHONPATH", Filename.dirname exe)
+          ]
       ]
   in
   let args = "-m" :: "observer" :: exe :: args in

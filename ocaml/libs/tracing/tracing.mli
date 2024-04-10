@@ -119,6 +119,8 @@ module Tracer : sig
     -> unit
     -> (Span.t option, exn) result
 
+  val span_of_traceparent : string option -> name:string -> Span.t option
+
   val finish :
     ?error:exn * string -> Span.t option -> (Span.t option, exn) result
 

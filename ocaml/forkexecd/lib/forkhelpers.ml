@@ -37,7 +37,7 @@ let test_path =
 let runtime_path = Option.value ~default:"/var" test_path
 
 let with_tracing ?traceparent ~name f =
-  let name = "forkhelpers" ^ "." ^ name in
+  let name = Printf.sprintf "forkhelpers.%s" name in
   Tracing.with_tracing ?parent:traceparent ~name f
 
 let finally = Xapi_stdext_pervasives.Pervasiveext.finally
@@ -55,8 +55,9 @@ exception Subprocess_killed of int
 
 exception Subprocess_timeout
 
-let waitpid (sock, pid) =
-  let status = Fecomms.read_raw_rpc sock in
+let waitpid ?traceparent (sock, pid) =
+  with_tracing ~traceparent ~name:"waitpid" @@ fun traceparent ->
+  let status = Fecomms.read_raw_rpc ?traceparent sock in
   Unix.close sock ;
   match status with
   | Ok Fe.(Finished (WEXITED n)) ->
@@ -81,7 +82,8 @@ let waitpid (sock, pid) =
 (* [waitpid_nohang] reports the status of a socket to a process. The
    intention is to make this non-blocking. If the process is finished,
    the socket is closed and not otherwise. *)
-let waitpid_nohang (sock, pid) =
+let waitpid_nohang ?traceparent (sock, pid) =
+  with_tracing ~traceparent ~name:"waitpid_nohang" @@ fun _ ->
   let verbose = false in
   if verbose then D.debug "%s pid=%d" __FUNCTION__ pid ;
   let fail fmt = Printf.kprintf failwith fmt in
@@ -157,8 +159,7 @@ let temp_dir =
 (** Creates a temporary file and opens it for logging. The fd is passed to the function
     'f'. The logfile is guaranteed to be closed afterwards, and unlinked if either the delete flag is set or the call fails. If the
     function 'f' throws an error then the log file contents are read in *)
-let with_logfile_fd ?traceparent ?(delete = true) prefix f =
-  with_tracing ~traceparent ~name:"with_logfile_fd" @@ fun _ ->
+let with_logfile_fd ?(delete = true) prefix f =
   let logfile = Filename.temp_file ?temp_dir prefix ".log" in
   let read_logfile () =
     let contents = Xapi_stdext_unix.Unixext.string_of_file logfile in
@@ -186,9 +187,10 @@ type syslog_stdout =
 let safe_close_and_exec ?traceparent ?env stdin stdout stderr
     (fds : (string * Unix.file_descr) list) ?(syslog_stdout = NoSyslogging)
     ?(redirect_stderr_to_stdout = false) (cmd : string) (args : string list) =
-  with_tracing ~traceparent ~name:"safe_close_and_exec" @@ fun _ ->
+  with_tracing ~traceparent ~name:"safe_close_and_exec" @@ fun traceparent ->
   let sock =
-    Fecomms.open_unix_domain_sock_client (runtime_path ^ "/xapi/forker/main")
+    Fecomms.open_unix_domain_sock_client ?traceparent
+      (runtime_path ^ "/xapi/forker/main")
   in
   let stdinuuid = Uuidx.(to_string (make ())) in
   let stdoutuuid = Uuidx.(to_string (make ())) in
@@ -235,7 +237,7 @@ let safe_close_and_exec ?traceparent ?env stdin stdout stderr
         | Syslog_WithKey k ->
             {Fe.enabled= true; Fe.key= Some k}
       in
-      Fecomms.write_raw_rpc sock
+      Fecomms.write_raw_rpc ?traceparent sock
         (Fe.Setup
            {
              Fe.cmdargs= cmd :: args
@@ -246,7 +248,7 @@ let safe_close_and_exec ?traceparent ?env stdin stdout stderr
            }
         ) ;
 
-      let response = Fecomms.read_raw_rpc sock in
+      let response = Fecomms.read_raw_rpc ?traceparent sock in
 
       let s =
         match response with
@@ -269,10 +271,14 @@ let safe_close_and_exec ?traceparent ?env stdin stdout stderr
             failwith msg
       in
 
-      let fd_sock = Fecomms.open_unix_domain_sock_client s.Fe.fd_sock_path in
+      let fd_sock =
+        Fecomms.open_unix_domain_sock_client ?traceparent s.Fe.fd_sock_path
+      in
       add_fd_to_close_list fd_sock ;
 
-      let send_named_fd uuid fd = Fecomms.send_named_fd fd_sock uuid fd in
+      let send_named_fd uuid fd =
+        Fecomms.send_named_fd ?traceparent fd_sock uuid fd
+      in
 
       List.iter
         (fun (uuid, _, srcfdo) ->
@@ -284,8 +290,8 @@ let safe_close_and_exec ?traceparent ?env stdin stdout stderr
         )
         predefined_fds ;
       List.iter (fun (uuid, srcfd) -> send_named_fd uuid srcfd) fds ;
-      Fecomms.write_raw_rpc sock Fe.Exec ;
-      match Fecomms.read_raw_rpc sock with
+      Fecomms.write_raw_rpc ?traceparent sock Fe.Exec ;
+      match Fecomms.read_raw_rpc ?traceparent sock with
       | Ok (Fe.Execed pid) ->
           (sock, pid)
       | Ok status ->
@@ -330,27 +336,33 @@ let execute_command_get_output_inner ?traceparent ?env ?stdin
   finally
     (fun () ->
       match
-        with_logfile_fd "execute_command_get_out" (fun out_fd ->
-            with_logfile_fd "execute_command_get_err" (fun err_fd ->
-                let sock, pid =
-                  safe_close_and_exec ?traceparent ?env
-                    (Option.map (fun (_, fd, _) -> fd) stdinandpipes)
-                    (Some out_fd) (Some err_fd) [] ~syslog_stdout
-                    ~redirect_stderr_to_stdout cmd args
-                in
-                Option.iter
-                  (fun (str, _, wr) ->
-                    Xapi_stdext_unix.Unixext.really_write_string wr str ;
-                    close wr
-                  )
-                  stdinandpipes ;
-                if timeout > 0. then
-                  Unix.setsockopt_float sock Unix.SO_RCVTIMEO timeout ;
-                try waitpid (sock, pid)
-                with Unix.(Unix_error ((EAGAIN | EWOULDBLOCK), _, _)) ->
-                  Unix.kill pid Sys.sigkill ;
-                  ignore (waitpid (sock, pid)) ;
-                  raise Subprocess_timeout
+        with_tracing ~traceparent ~name:"with_logfile_fd" (fun traceparent ->
+            with_logfile_fd "execute_command_get_out" (fun out_fd ->
+                with_tracing ~traceparent ~name:"with_logfile_fd"
+                  (fun traceparent ->
+                    with_logfile_fd "execute_command_get_err" (fun err_fd ->
+                        let sock, pid =
+                          safe_close_and_exec ?traceparent ?env
+                            (Option.map (fun (_, fd, _) -> fd) stdinandpipes)
+                            (Some out_fd) (Some err_fd) [] ~syslog_stdout
+                            ~redirect_stderr_to_stdout cmd args
+                        in
+                        Option.iter
+                          (fun (str, _, wr) ->
+                            Xapi_stdext_unix.Unixext.really_write_string wr str ;
+                            close wr
+                          )
+                          stdinandpipes ;
+                        if timeout > 0. then
+                          Unix.setsockopt_float sock Unix.SO_RCVTIMEO timeout ;
+                        try waitpid ?traceparent (sock, pid)
+                        with
+                        | Unix.(Unix_error ((EAGAIN | EWOULDBLOCK), _, _)) ->
+                          Unix.kill pid Sys.sigkill ;
+                          ignore (waitpid ?traceparent (sock, pid)) ;
+                          raise Subprocess_timeout
+                    )
+                )
             )
         )
       with

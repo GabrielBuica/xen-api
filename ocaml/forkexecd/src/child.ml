@@ -18,9 +18,10 @@ type state_t = {
 
 open Fe_debug
 
-let handle_fd_sock fd_sock state =
+let handle_fd_sock ~traceparent fd_sock state =
+  with_tracing ~traceparent ~name:"child.handle_fd_sock" @@ fun traceparent ->
   try
-    let newfd, buffer = Fecomms.receive_named_fd fd_sock in
+    let newfd, buffer = Fecomms.receive_named_fd ?traceparent fd_sock in
     if Fd_send_recv.int_of_fd newfd = -1 then (
       debug "Failed to receive an fd associated with the message '%s'" buffer ;
       failwith "Didn't get an fd"
@@ -46,8 +47,10 @@ let handle_fd_sock fd_sock state =
     {state with ids_received= (buffer, fd) :: state.ids_received}
   with Fecomms.Connection_closed -> {state with fd_sock2= None}
 
-let handle_comms_sock comms_sock state =
-  let call = Fecomms.read_raw_rpc comms_sock in
+let handle_comms_sock ~traceparent comms_sock state =
+  with_tracing ~traceparent ~name:"child.handle_comms_sock"
+  @@ fun traceparent ->
+  let call = Fecomms.read_raw_rpc ?traceparent comms_sock in
   match call with
   | Ok Fe.Exec ->
       debug "Exec" ;
@@ -59,7 +62,9 @@ let handle_comms_sock comms_sock state =
       warn "Unable to decode command: %s" err ;
       state
 
-let handle_comms_no_fd_sock2 comms_sock fd_sock state =
+let handle_comms_no_fd_sock2 ~traceparent comms_sock fd_sock state =
+  with_tracing ~traceparent ~name:"child.handle_coms_no_fd_sock2"
+  @@ fun traceparent ->
   debug "Selecting in handle_comms_no_fd_sock2" ;
   let ready, _, _ = Unix.select [comms_sock; fd_sock] [] [] (-1.0) in
   debug "Done" ;
@@ -69,27 +74,30 @@ let handle_comms_no_fd_sock2 comms_sock fd_sock state =
     {state with fd_sock2= Some fd_sock2}
   ) else (
     debug "comms sock" ;
-    handle_comms_sock comms_sock state
+    handle_comms_sock ~traceparent comms_sock state
   )
 
-let handle_comms_with_fd_sock2 comms_sock _fd_sock fd_sock2 state =
+let handle_comms_with_fd_sock2 ~traceparent comms_sock _fd_sock fd_sock2 state =
+  with_tracing ~traceparent ~name:"child.handle_coms_with_fd_sock2"
+  @@ fun traceparent ->
   debug "Selecting in handle_comms_with_fd_sock2" ;
   let ready, _, _ = Unix.select [comms_sock; fd_sock2] [] [] (-1.0) in
   debug "Done" ;
   if List.mem fd_sock2 ready then (
     debug "fd sock2" ;
-    handle_fd_sock fd_sock2 state
+    handle_fd_sock ~traceparent fd_sock2 state
   ) else (
     debug "comms sock" ;
-    handle_comms_sock comms_sock state
+    handle_comms_sock ~traceparent comms_sock state
   )
 
-let handle_comms comms_sock fd_sock state =
+let handle_comms ~traceparent comms_sock fd_sock state =
+  with_tracing ~traceparent ~name:"child.handle_coms" @@ fun traceparent ->
   match state.fd_sock2 with
   | None ->
-      handle_comms_no_fd_sock2 comms_sock fd_sock state
+      handle_comms_no_fd_sock2 ~traceparent comms_sock fd_sock state
   | Some x ->
-      handle_comms_with_fd_sock2 comms_sock fd_sock x state
+      handle_comms_with_fd_sock2 ~traceparent comms_sock fd_sock x state
 
 let log_failure args child_pid reason =
   (* The commandline might be too long to clip it *)
@@ -138,31 +146,33 @@ let handle_sigchld comms_sock args pid _signum =
     exit 0
   )
 
-let run state comms_sock fd_sock fd_sock_path =
+let run ~traceparent state comms_sock fd_sock fd_sock_path =
   let rec inner state =
-    let state = handle_comms comms_sock fd_sock state in
+    let state = handle_comms ~traceparent comms_sock fd_sock state in
     if state.finished then state else inner state
   in
 
   try
-    debug "Started: state.cmdargs = [%s]" (String.concat ";" state.cmdargs) ;
-    debug "Started: state.env = [%s]" (String.concat ";" state.env) ;
+    ( with_tracing ~traceparent ~name:"child.run" @@ fun _ ->
+      debug "Started: state.cmdargs = [%s]" (String.concat ";" state.cmdargs) ;
+      debug "Started: state.env = [%s]" (String.concat ";" state.env) ;
 
-    let fd = Unix.openfile "/dev/null" [Unix.O_WRONLY] 0o0 in
-    Unix.dup2 fd Unix.stdin ;
-    Unix.dup2 fd Unix.stdout ;
-    Unix.dup2 fd Unix.stderr ;
+      let fd = Unix.openfile "/dev/null" [Unix.O_WRONLY] 0o0 in
+      Unix.dup2 fd Unix.stdin ;
+      Unix.dup2 fd Unix.stdout ;
+      Unix.dup2 fd Unix.stderr ;
 
-    if fd <> Unix.stdin && fd <> Unix.stdout && fd <> Unix.stderr then
-      Unix.close fd ;
+      if fd <> Unix.stdin && fd <> Unix.stdout && fd <> Unix.stderr then
+        Unix.close fd ;
 
-    let state = inner state in
+      let state = inner state in
 
-    debug "Finished..." ;
-    Unix.close fd_sock ;
-    (match state.fd_sock2 with Some x -> Unix.close x | None -> ()) ;
+      debug "Finished..." ;
+      Unix.close fd_sock ;
+      (match state.fd_sock2 with Some x -> Unix.close x | None -> ()) ;
 
-    Xapi_stdext_unix.Unixext.unlink_safe fd_sock_path ;
+      Xapi_stdext_unix.Unixext.unlink_safe fd_sock_path
+    ) ;
 
     (* Finally, replace placeholder uuids in the commandline arguments
        		   to be the string representation of the fd (where we don't care what
@@ -243,7 +253,7 @@ let run state comms_sock fd_sock fd_sock_path =
         in
         write_log () ; exit rc
     ) else (
-      ( try Fecomms.write_raw_rpc comms_sock (Fe.Execed result)
+      ( try Fecomms.write_raw_rpc ?traceparent comms_sock (Fe.Execed result)
         with Unix.Unix_error (Unix.EPIPE, _, _) -> raise Cancelled
       ) ;
 
@@ -303,7 +313,7 @@ let run state comms_sock fd_sock fd_sock_path =
              waitpid the child. If this is received we can exit, and the child will
              continue with init as its parent. *)
           let rec wait_for_dontwaitpid () =
-            match Fecomms.read_raw_rpc comms_sock with
+            match Fecomms.read_raw_rpc ?traceparent comms_sock with
             | Ok Fe.Dontwaitpid ->
                 Unix.close comms_sock ; exit 0
             | _ ->

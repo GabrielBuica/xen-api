@@ -508,6 +508,14 @@ module Tracer = struct
       let span = Span.start ~attributes ~name ~parent ~span_kind () in
       Spans.add_to_spans ~span ; Ok (Some span)
 
+  let span_of_traceparent traceparent ~name =
+    match traceparent with
+    | None ->
+        None
+    | Some traceparent ->
+        let spancontext = SpanContext.of_traceparent traceparent in
+        Option.map (fun tp -> span_of_span_context tp name) spancontext
+
   let finish ?error span =
     Ok
       (Option.map

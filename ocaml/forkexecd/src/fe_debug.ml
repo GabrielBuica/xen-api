@@ -29,3 +29,7 @@ let debug (fmt : ('a, unit, string, unit) format4) =
 let write_log () =
   List.iter (fun l -> warn "%s" l) (List.rev !debug_log) ;
   reset ()
+
+let with_tracing ~traceparent ~name f =
+  let name = Printf.sprintf "fe_main.%s" name in
+  Tracing.with_tracing ~parent:traceparent ~name f
