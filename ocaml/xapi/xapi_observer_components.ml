@@ -99,7 +99,7 @@ let ( // ) = Filename.concat
 let dir_name_of_component component =
   Xapi_globs.observer_config_dir // to_string component // "enabled"
 
-let env_exe_args_of ~component ~traceparent ~exe ~args =
+let env_exe_args_of ~component ~exe ~args =
   let dir_name_value = Filename.quote (dir_name_of_component component) in
   let env_vars =
     Array.concat

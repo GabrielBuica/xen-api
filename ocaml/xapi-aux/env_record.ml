@@ -22,17 +22,9 @@ let list element lst = List.map element lst |> String.concat ","
 
 let pair (key, value) = String.concat "=" [key; value]
 
-let pair_opt (key, value) =
-  match value with None -> None | Some value -> Some (pair (key, value))
-
 let to_shell_string lst =
   lst
   |> List.map (fun (key, value) -> String.concat "=" [key; Filename.quote value])
   |> String.concat "\n"
 
 let to_string_array = Array.of_list
-
-let to_string_list_opt key value =
-  match value with None -> [] | Some value -> [pair (key, value)]
-
-let list_of_pairs pairs = List.filter_map pair_opt pairs
