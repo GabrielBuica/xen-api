@@ -12,6 +12,10 @@
 * GNU Lesser General Public License for more details.
 *)
 
+(** [Tracing_export] is a module dedicated for the creation and management of 
+    threads that export the tracing data.
+  *)
+
 val set_export_interval : float -> unit
 (** [set_export_interval seconds] sets the time interval between consecutive 
     exports of the finished spans to [seconds]. 
@@ -32,8 +36,11 @@ val set_service_name : string -> unit
     Default name is ["unknown"].
   *)
 
+(** [Destination] is a module for managing the export of tracing data to 
+    different types of endpoints, whether is exporting it to a [File] or an 
+    [Http] endpoint. 
+    *)
 module Destination : sig
-
   (** [File] is a module for managing the files in which the tracing data is 
        exported.
     *)
@@ -60,11 +67,10 @@ module Destination : sig
     (** [set_compress_tracing_files flag] sets wheater or not the tracing files
         are compressed or not.
       *)
-
   end
 
   val flush_spans : unit -> unit
-    (** [flush_spans ()] forcefully flushes the spans to the current enabled 
+  (** [flush_spans ()] forcefully flushes the spans to the current enabled 
         endpoints.
       *)
 
