@@ -1,12 +1,23 @@
 open Fe_debug
 
-let setup sock cmdargs id_to_fd_map syslog_stdout redirect_stderr_to_stdout env
-    =
+let setup ?tracing sock cmdargs id_to_fd_map syslog_stdout
+    redirect_stderr_to_stdout env =
+  let tracing =
+    match
+      Tracing.Tracer.start
+        ~tracer:(Tracing.Tracer.get_tracer "fe_main.setup")
+        ~attributes:[] ~name:"setup" ~parent:tracing ()
+    with
+    | Ok span ->
+        span
+    | _ ->
+        None
+  in
   let fd_sock_path =
     Printf.sprintf "%s/fd_%s" Forkhelpers.temp_dir_server
       Uuidx.(to_string (make ()))
   in
-  let fd_sock = Fecomms.open_unix_domain_sock () in
+  let fd_sock = Fecomms.open_unix_domain_sock ?tracing () in
   Xapi_stdext_unix.Unixext.unlink_safe fd_sock_path ;
   debug "About to bind to %s" fd_sock_path ;
   Unix.bind fd_sock (Unix.ADDR_UNIX fd_sock_path) ;
@@ -35,18 +46,30 @@ let setup sock cmdargs id_to_fd_map syslog_stdout redirect_stderr_to_stdout env
         ; finished= false
         }
       in
-      Child.run state sock fd_sock fd_sock_path
+      let response = Child.run state sock fd_sock fd_sock_path in
+      ignore @@ Tracing.Tracer.finish tracing ;
+      response
     ) else (* Child *)
+      let _ = Tracing.Tracer.finish tracing in
       exit 0
   ) else (
     (* Parent *)
     debug "Waiting for process %d to exit" result ;
     ignore (Unix.waitpid [] result) ;
     Unix.close fd_sock ;
-    Some {Fe.fd_sock_path}
+    let response = Some {Fe.fd_sock_path} in
+    ignore @@ Tracing.Tracer.finish tracing ;
+    response
   )
 
 let systemd_managed () = try Daemon.booted () with Unix.Unix_error _ -> false
+
+let _ =
+  Tracing.create ~enabled:true ~attributes:[] ~endpoints:[Tracing.bugtool_name]
+    ~name_label:"forkexecd"
+    ~uuid:(Uuidx.to_string (Uuidx.make ())) ;
+  Tracing_export.set_service_name "forkexecd" ;
+  Tracing_export.main ()
 
 let _ =
   Sys.set_signal Sys.sigpipe Sys.Signal_ignore ;
@@ -74,13 +97,20 @@ let _ =
       let cmd = Fecomms.read_raw_rpc sock in
       match cmd with
       | Ok (Fe.Setup s) -> (
+          let tracing =
+            Tracing.Tracer.span_of_traceparent
+              ~traceparent:(Fecomms.EnvHelpers.to_traceparent s.Fe.env)
+              ~name:"forkexecd.cmd"
+          in
           let result =
-            setup sock s.Fe.cmdargs s.Fe.id_to_fd_map s.Fe.syslog_stdout
-              s.Fe.redirect_stderr_to_stdout s.Fe.env
+            setup ~tracing sock s.Fe.cmdargs s.Fe.id_to_fd_map
+              s.Fe.syslog_stdout s.Fe.redirect_stderr_to_stdout s.Fe.env
           in
           match result with
           | Some response ->
-              ( try Fecomms.write_raw_rpc sock (Fe.Setup_response response)
+              ( try
+                  Fecomms.write_raw_rpc ?tracing sock
+                    (Fe.Setup_response response)
                 with Unix.Unix_error (Unix.EPIPE, _, _) -> ()
               ) ;
               Unix.close sock

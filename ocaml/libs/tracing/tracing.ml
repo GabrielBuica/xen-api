@@ -490,6 +490,14 @@ module Tracer = struct
     ; attributes= Tracing_attributes.empty
     }
 
+  let span_of_traceparent ~traceparent ~name =
+    match traceparent with
+    | None ->
+        None
+    | Some traceparent ->
+        let spancontext = SpanContext.of_traceparent traceparent in
+        Option.map (fun tp -> span_of_span_context tp name) spancontext
+
   let start ~tracer:t ?(attributes = []) ?(span_kind = SpanKind.Internal) ~name
       ~parent () : (Span.t option, exn) result =
     (* Do not start span if the TracerProvider is diabled*)

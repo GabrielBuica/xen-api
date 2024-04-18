@@ -2,16 +2,18 @@
  (modes exe)
  (name fe_main)
  (libraries
-   astring
-   fd-send-recv
-   forkexec
-   systemd
-   uuid
-   xapi-log
-   xapi-stdext-unix
-  ))
+  astring
+  fd-send-recv
+  forkexec
+  systemd
+  uuid
+  xapi-log
+  xapi-stdext-unix
+  xapi-tracing
+  xapi-tracing.export))
 
 (install
  (package xapi-forkexecd)
  (section sbin)
- (files (fe_main.exe as forkexecd)))
+ (files
+  (fe_main.exe as forkexecd)))

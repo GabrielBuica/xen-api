@@ -104,6 +104,9 @@ module Tracer : sig
 
   val span_of_span_context : SpanContext.t -> string -> Span.t
 
+  val span_of_traceparent :
+    traceparent:string option -> name:string -> Span.t option
+
   val start :
        tracer:t
     -> ?attributes:(string * string) list
