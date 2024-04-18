@@ -240,6 +240,9 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
       (* Distance ourselves from our parent process: *)
       if Unix.setsid () == -1 then failwith "Unix.setsid failed" ;
 
+      Tracing.with_tracing ~parent:tracing ~name:"before.execve" (fun _ -> ()) ;
+      Tracing_export.Destination.flush_spans () ;
+
       (* And exec *)
       try Unix.execve name (Array.of_list args) (Array.of_list state.env)
       with e ->
@@ -315,6 +318,8 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
           Tracing_export.Destination.flush_spans () ;
           exit 0
       | _ ->
+          ignore @@ Tracing.Tracer.finish tracing ;
+          Tracing_export.Destination.flush_spans () ;
           () ;
 
           (* At this point we know that the child is still running - set up a signal
@@ -334,20 +339,30 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
              waitpid the child. If this is received we can exit, and the child will
              continue with init as its parent. *)
           let rec wait_for_dontwaitpid ?tracing () =
-            Tracing.with_tracing ~parent:tracing
-              ~name:"child.rec_wait_dont_wait"
-            @@ fun tracing ->
+            let tracing =
+              match
+                Tracing.Tracer.start
+                  ~tracer:(Tracing.get_tracer ~name:"child.rec_wait_dont_wait")
+                  ~attributes:[] ~name:"child.rec_wait_dont_wait"
+                  ~parent:tracing ()
+              with
+              | Ok span ->
+                  span
+              | _ ->
+                  None
+            in
+
             match Fecomms.read_raw_rpc ?tracing comms_sock with
             | Ok Fe.Dontwaitpid ->
                 Unix.close comms_sock ;
+                ignore @@ Tracing.Tracer.finish ~tracing ;
                 Tracing_export.Destination.flush_spans () ;
                 exit 0
             | _ ->
+                ignore @@ Tracing.Tracer.finish ~tracing ;
                 wait_for_dontwaitpid ?tracing ()
           in
-          let result = wait_for_dontwaitpid ?tracing () in
-          ignore @@ Tracing.Tracer.finish tracing ;
-          result
+          wait_for_dontwaitpid ?tracing ()
     )
   with
   | Cancelled ->
