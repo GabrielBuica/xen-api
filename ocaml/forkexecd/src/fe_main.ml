@@ -27,7 +27,7 @@ let setup ?tracing sock cmdargs id_to_fd_map syslog_stdout
     match
       Tracing.Tracer.start
         ~tracer:(Tracing.get_tracer ~name:"fe_main.fork0")
-        ~attributes:[] ~name:"setup" ~parent:tracing ()
+        ~attributes:[] ~name:"fe_main.fork0" ~parent:tracing ()
     with
     | Ok span ->
         span
@@ -38,7 +38,7 @@ let setup ?tracing sock cmdargs id_to_fd_map syslog_stdout
     match
       Tracing.Tracer.start
         ~tracer:(Tracing.get_tracer ~name:"fe_main.forkp")
-        ~attributes:[] ~name:"setup" ~parent:tracing ()
+        ~attributes:[] ~name:"fe_main.forkp" ~parent:tracing ()
     with
     | Ok span ->
         span
@@ -53,7 +53,7 @@ let setup ?tracing sock cmdargs id_to_fd_map syslog_stdout
       match
         Tracing.Tracer.start
           ~tracer:(Tracing.get_tracer ~name:"fe_main.fork00")
-          ~attributes:[] ~name:"setup" ~parent:tracing ()
+          ~attributes:[] ~name:"fe_main.fork00" ~parent:tracing ()
       with
       | Ok span ->
           span
@@ -64,7 +64,7 @@ let setup ?tracing sock cmdargs id_to_fd_map syslog_stdout
       match
         Tracing.Tracer.start
           ~tracer:(Tracing.get_tracer ~name:"fe_main.fork0p")
-          ~attributes:[] ~name:"setup" ~parent:tracing ()
+          ~attributes:[] ~name:"fe_main.fork0p" ~parent:tracing ()
       with
       | Ok span ->
           span
