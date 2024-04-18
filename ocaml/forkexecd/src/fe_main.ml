@@ -46,21 +46,45 @@ let setup ?tracing sock cmdargs id_to_fd_map syslog_stdout
         ; finished= false
         }
       in
-      let response = Child.run ?tracing state sock fd_sock fd_sock_path in
+      let tracing1 =
+        match
+          Tracing.Tracer.start
+            ~tracer:(Tracing.get_tracer ~name:"fe_main.setup.child.run")
+            ~attributes:[] ~name:"fe_main.setup.child.run" ~parent:tracing ()
+        with
+        | Ok span ->
+            span
+        | _ ->
+            None
+      in
+      let response =
+        Child.run ?tracing:tracing1 state sock fd_sock fd_sock_path
+      in
+      ignore @@ Tracing.Tracer.finish tracing1 ;
       ignore @@ Tracing.Tracer.finish tracing ;
       response
     ) else (* Child *)
       let _ = Tracing.Tracer.finish tracing in
       exit 0
-  ) else (
-    (* Parent *)
+  ) else (* Parent *)
+    let tracing1 =
+      match
+        Tracing.Tracer.start
+          ~tracer:(Tracing.get_tracer ~name:"fe_main.setup.waitpid")
+          ~attributes:[] ~name:"fe_main.setup.waitpid" ~parent:tracing ()
+      with
+      | Ok span ->
+          span
+      | _ ->
+          None
+    in
     debug "Waiting for process %d to exit" result ;
     ignore (Unix.waitpid [] result) ;
     Unix.close fd_sock ;
     let response = Some {Fe.fd_sock_path} in
+    ignore @@ Tracing.Tracer.finish tracing1 ;
     ignore @@ Tracing.Tracer.finish tracing ;
     response
-  )
 
 let systemd_managed () = try Daemon.booted () with Unix.Unix_error _ -> false
 

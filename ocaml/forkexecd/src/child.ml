@@ -148,12 +148,13 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
     let tracing1 =
       match
         Tracing.Tracer.start
-          ~tracer:(Tracing.get_tracer "child.part1")
+          ~tracer:(Tracing.get_tracer ~name:"child.part1")
           ~attributes:[] ~name:"setup" ~parent:tracing ()
       with
       | Ok span ->
           span
       | _ ->
+          info "CP-48195: Tracing failed to start." ;
           None
     in
     debug "Started: state.cmdargs = [%s]" (String.concat ";" state.cmdargs) ;
@@ -291,7 +292,7 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
       let tracing =
         match
           Tracing.Tracer.start
-            ~tracer:(Tracing.get_tracer "child.waitingpid")
+            ~tracer:(Tracing.get_tracer ~name:"child.waitingpid")
             ~attributes:[] ~name:"setup" ~parent:tracing ()
         with
         | Ok span ->
@@ -327,7 +328,7 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
              waitpid the child. If this is received we can exit, and the child will
              continue with init as its parent. *)
           let rec wait_for_dontwaitpid ?tracing () =
-            Tracing.Tracer.with_tracing ~parent:tracing
+            Tracing.with_tracing ~parent:tracing
               ~name:"child.rec_wait_dont_wait"
             @@ fun tracing ->
             match Fecomms.read_raw_rpc comms_sock with
