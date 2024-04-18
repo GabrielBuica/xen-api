@@ -5,7 +5,7 @@ let setup ?tracing sock cmdargs id_to_fd_map syslog_stdout
   let tracing =
     match
       Tracing.Tracer.start
-        ~tracer:(Tracing.Tracer.get_tracer "fe_main.setup")
+        ~tracer:(Tracing.get_tracer ~name:"fe_main.setup")
         ~attributes:[] ~name:"setup" ~parent:tracing ()
     with
     | Ok span ->
@@ -103,7 +103,7 @@ let _ =
               ~name:"forkexecd.cmd"
           in
           let result =
-            setup ~tracing sock s.Fe.cmdargs s.Fe.id_to_fd_map
+            setup ?tracing sock s.Fe.cmdargs s.Fe.id_to_fd_map
               s.Fe.syslog_stdout s.Fe.redirect_stderr_to_stdout s.Fe.env
           in
           match result with
