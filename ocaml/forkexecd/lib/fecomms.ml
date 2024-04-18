@@ -79,7 +79,7 @@ let open_unix_domain_sock_client ?tracing path =
   with e -> Unix.close sock ; raise e
 
 let read_raw_rpc ?tracing sock =
-  with_tracing ~tracing ~name:"read_raw_rpc" @@ fun _ ->
+  with_tracing ~tracing ~name:"read_raw_rpc" @@ fun tracing ->
   let buffer = Bytes.make 12 '\000' in
   ( with_tracing ~tracing ~name:"Unixext.really_read_string1" @@ fun _ ->
     Unixext.really_read sock buffer 0 12

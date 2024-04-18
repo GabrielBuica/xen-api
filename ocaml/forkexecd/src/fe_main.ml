@@ -23,11 +23,57 @@ let setup ?tracing sock cmdargs id_to_fd_map syslog_stdout
   Unix.bind fd_sock (Unix.ADDR_UNIX fd_sock_path) ;
   Unix.listen fd_sock 5 ;
   debug "bound, listening" ;
+  let tracing_fork0 =
+    match
+      Tracing.Tracer.start
+        ~tracer:(Tracing.get_tracer ~name:"fe_main.fork0")
+        ~attributes:[] ~name:"setup" ~parent:tracing ()
+    with
+    | Ok span ->
+        span
+    | _ ->
+        None
+  in
+  let tracing_forkp =
+    match
+      Tracing.Tracer.start
+        ~tracer:(Tracing.get_tracer ~name:"fe_main.forkp")
+        ~attributes:[] ~name:"setup" ~parent:tracing ()
+    with
+    | Ok span ->
+        span
+    | _ ->
+        None
+  in
   let result = Unix.fork () in
   if result = 0 then (
+    ignore @@ Tracing.Tracer.finish tracing_fork0 ;
     debug "Child here!" ;
+    let tracing_fork00 =
+      match
+        Tracing.Tracer.start
+          ~tracer:(Tracing.get_tracer ~name:"fe_main.fork00")
+          ~attributes:[] ~name:"setup" ~parent:tracing ()
+      with
+      | Ok span ->
+          span
+      | _ ->
+          None
+    in
+    let tracing_fork0p =
+      match
+        Tracing.Tracer.start
+          ~tracer:(Tracing.get_tracer ~name:"fe_main.fork0p")
+          ~attributes:[] ~name:"setup" ~parent:tracing ()
+      with
+      | Ok span ->
+          span
+      | _ ->
+          None
+    in
     let result2 = Unix.fork () in
     if result2 = 0 then (
+      ignore @@ Tracing.Tracer.finish tracing_fork00 ;
       debug "Grandchild here!" ;
       (* Grandchild *)
       let state =
@@ -64,27 +110,29 @@ let setup ?tracing sock cmdargs id_to_fd_map syslog_stdout
       ignore @@ Tracing.Tracer.finish tracing ;
       response
     ) else (* Child *)
+      let _ = Tracing.Tracer.finish tracing_fork0p in
       let _ = Tracing.Tracer.finish tracing in
       exit 0
   ) else (* Parent *)
-    let tracing1 =
-      match
-        Tracing.Tracer.start
-          ~tracer:(Tracing.get_tracer ~name:"fe_main.setup.waitpid")
-          ~attributes:[] ~name:"fe_main.setup.waitpid" ~parent:tracing ()
-      with
-      | Ok span ->
-          span
-      | _ ->
-          None
-    in
-    debug "Waiting for process %d to exit" result ;
-    ignore (Unix.waitpid [] result) ;
-    Unix.close fd_sock ;
-    let response = Some {Fe.fd_sock_path} in
-    ignore @@ Tracing.Tracer.finish tracing1 ;
-    ignore @@ Tracing.Tracer.finish tracing ;
-    response
+    ignore @@ Tracing.Tracer.finish tracing_forkp ;
+  let tracing1 =
+    match
+      Tracing.Tracer.start
+        ~tracer:(Tracing.get_tracer ~name:"fe_main.setup.waitpid")
+        ~attributes:[] ~name:"fe_main.setup.waitpid" ~parent:tracing ()
+    with
+    | Ok span ->
+        span
+    | _ ->
+        None
+  in
+  debug "Waiting for process %d to exit" result ;
+  ignore (Unix.waitpid [] result) ;
+  Unix.close fd_sock ;
+  let response = Some {Fe.fd_sock_path} in
+  ignore @@ Tracing.Tracer.finish tracing1 ;
+  ignore @@ Tracing.Tracer.finish tracing ;
+  response
 
 let systemd_managed () = try Daemon.booted () with Unix.Unix_error _ -> false
 
