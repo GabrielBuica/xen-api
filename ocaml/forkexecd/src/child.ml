@@ -219,6 +219,8 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
     ) ;
 
     ignore @@ Tracing.Tracer.finish tracing1 ;
+    Tracing_export.Destination.flush_spans () ;
+    
     let result = Unix.fork () in
 
     if result = 0 then (

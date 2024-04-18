@@ -36,9 +36,9 @@ let test_path =
 
 let runtime_path = Option.value ~default:"/var" test_path
 
-let with_tracing ~tracing ~name f =
+let with_tracing ?attributes ~tracing ~name f =
   let name = Printf.sprintf "forkhelpers.%s" name in
-  Tracing.with_tracing ~parent:tracing ~name f
+  Tracing.with_tracing ?attributes ~parent:tracing ~name f
 
 let finally = Xapi_stdext_pervasives.Pervasiveext.finally
 
@@ -55,8 +55,9 @@ exception Subprocess_killed of int
 
 exception Subprocess_timeout
 
-let waitpid (sock, pid) =
-  let status = Fecomms.read_raw_rpc sock in
+let waitpid ?tracing (sock, pid) =
+  with_tracing ~tracing ~name:"waitpid" @@ fun tracing ->
+  let status = Fecomms.read_raw_rpc ?tracing sock in
   Unix.close sock ;
   match status with
   | Ok Fe.(Finished (WEXITED n)) ->
@@ -81,7 +82,7 @@ let waitpid (sock, pid) =
 (* [waitpid_nohang] reports the status of a socket to a process. The
    intention is to make this non-blocking. If the process is finished,
    the socket is closed and not otherwise. *)
-let waitpid_nohang (sock, pid) =
+let waitpid_nohang ?tracing (sock, pid) =
   let verbose = false in
   if verbose then D.debug "%s pid=%d" __FUNCTION__ pid ;
   let fail fmt = Printf.kprintf failwith fmt in
@@ -157,11 +158,16 @@ let temp_dir =
 (** Creates a temporary file and opens it for logging. The fd is passed to the function
     'f'. The logfile is guaranteed to be closed afterwards, and unlinked if either the delete flag is set or the call fails. If the
     function 'f' throws an error then the log file contents are read in *)
-let with_logfile_fd ?(delete = true) prefix f =
+let with_logfile_fd ?tracing ?(delete = true) prefix f =
   let logfile = Filename.temp_file ?temp_dir prefix ".log" in
   let read_logfile () =
     let contents = Xapi_stdext_unix.Unixext.string_of_file logfile in
-    Unix.unlink logfile ; contents
+    with_tracing
+      ~attributes:[("logfile.contents", contents)]
+      ~tracing ~name:"with_logfile"
+      (fun _ -> ()) ;
+    Unix.unlink logfile ;
+    contents
   in
 
   let log_fd = Unix.openfile logfile [Unix.O_WRONLY; Unix.O_CREAT] 0o0 in
@@ -352,8 +358,8 @@ let execute_command_get_output_inner ?tracing ?env ?stdin
                   stdinandpipes ;
                 if timeout > 0. then
                   Unix.setsockopt_float sock Unix.SO_RCVTIMEO timeout ;
-                with_tracing ~tracing ~name:"waitpid" @@ fun _ ->
-                try waitpid (sock, pid)
+                with_tracing ~tracing ~name:"call.waitpid" @@ fun tracing ->
+                try waitpid ?tracing (sock, pid)
                 with Unix.(Unix_error ((EAGAIN | EWOULDBLOCK), _, _)) ->
                   Unix.kill pid Sys.sigkill ;
                   ignore (waitpid (sock, pid)) ;

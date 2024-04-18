@@ -110,10 +110,11 @@ val safe_close_and_exec :
     	specified) and with any key from [id_to_fd_list] in [args] replaced by the integer
     	value of the file descriptor in the final process. *)
 
-val waitpid : pidty -> int * Unix.process_status
+val waitpid : ?tracing:Tracing.Span.t -> pidty -> int * Unix.process_status
 (** [waitpid p] returns the (pid, Unix.process_status) *)
 
-val waitpid_nohang : pidty -> int * Unix.process_status
+val waitpid_nohang :
+  ?tracing:Tracing.Span.t -> pidty -> int * Unix.process_status
 (** [waitpid_nohang p] returns the (pid, Unix.process_status) if the
     process has already quit or (0, Unix.WEXITTED 0) if the process is
     still running.  If the process is finished, the socket is closed
@@ -134,7 +135,11 @@ type 'a result =
   | Failure of string * exn  (** The function raised an exception. *)
 
 val with_logfile_fd :
-  ?delete:bool -> string -> (Unix.file_descr -> 'a) -> 'a result
+     ?tracing:Tracing.Span.t
+  -> ?delete:bool
+  -> string
+  -> (Unix.file_descr -> 'a)
+  -> 'a result
 (** Creates a temporary file and opens it for logging. The fd is passed to the function
     [f]. The logfile is guaranteed to be closed afterwards, and unlinked if either the delete flag is set or the call fails. If the
     function [f] throws an error then the log file contents are read in *)
