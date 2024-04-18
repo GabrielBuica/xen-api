@@ -103,7 +103,7 @@ let log_failure args child_pid reason =
   in
   Fe_debug.error "%d (%s) %s" child_pid cmdline' reason
 
-let report_child_exit comms_sock args child_pid status =
+let report_child_exit ?tracing comms_sock args child_pid status =
   let module Unixext = Xapi_stdext_unix.Unixext in
   let pr =
     match status with
@@ -125,7 +125,7 @@ let report_child_exit comms_sock args child_pid status =
   (* If the controlling process has called Forkhelpers.dontwaitpid
      	   then the comms_sock will be closed. We don't need to write our full debug
      	   logs in syslog if this happens: *)
-  try Fecomms.write_raw_rpc comms_sock result
+  try Fecomms.write_raw_rpc ?tracing comms_sock result
   with Unix.Unix_error (Unix.EPIPE, _, _) -> ()
 
 let handle_sigchld comms_sock args pid _signum =
@@ -148,8 +148,8 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
     let tracing1 =
       match
         Tracing.Tracer.start
-          ~tracer:(Tracing.get_tracer ~name:"child.part1")
-          ~attributes:[] ~name:"setup" ~parent:tracing ()
+          ~tracer:(Tracing.get_tracer ~name:"child.run.part1")
+          ~attributes:[] ~name:"child.run.part1" ~parent:tracing ()
       with
       | Ok span ->
           span
@@ -220,7 +220,7 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
 
     ignore @@ Tracing.Tracer.finish tracing1 ;
     Tracing_export.Destination.flush_spans () ;
-    
+
     let result = Unix.fork () in
 
     if result = 0 then (
@@ -256,12 +256,15 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
               Fe_debug.error "execve failed: %s" (Printexc.to_string e) ;
               126
         in
-        write_log () ; exit rc
+        write_log () ;
+        Tracing_export.Destination.flush_spans () ;
+        exit rc
     ) else (
-      ( try Fecomms.write_raw_rpc comms_sock (Fe.Execed result)
+      ( try Fecomms.write_raw_rpc ?tracing comms_sock (Fe.Execed result)
         with Unix.Unix_error (Unix.EPIPE, _, _) -> raise Cancelled
       ) ;
 
+      Tracing_export.Destination.flush_spans () ;
       List.iter (fun fd -> Unix.close fd) fds ;
 
       (* Close the end of the pipe that's only supposed to be written to by the child process. *)
@@ -295,7 +298,7 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
         match
           Tracing.Tracer.start
             ~tracer:(Tracing.get_tracer ~name:"child.waitingpid")
-            ~attributes:[] ~name:"setup" ~parent:tracing ()
+            ~attributes:[] ~name:"child.waitingpid" ~parent:tracing ()
         with
         | Ok span ->
             span
@@ -306,9 +309,10 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
          * via the socket and exit. *)
       match Unix.waitpid [Unix.WNOHANG] result with
       | pid, status when pid = result ->
-          report_child_exit comms_sock args result status ;
+          report_child_exit ?tracing comms_sock args result status ;
           Unix.close comms_sock ;
           ignore @@ Tracing.Tracer.finish tracing ;
+          Tracing_export.Destination.flush_spans () ;
           exit 0
       | _ ->
           () ;
@@ -333,9 +337,11 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
             Tracing.with_tracing ~parent:tracing
               ~name:"child.rec_wait_dont_wait"
             @@ fun tracing ->
-            match Fecomms.read_raw_rpc comms_sock with
+            match Fecomms.read_raw_rpc ?tracing comms_sock with
             | Ok Fe.Dontwaitpid ->
-                Unix.close comms_sock ; exit 0
+                Unix.close comms_sock ;
+                Tracing_export.Destination.flush_spans () ;
+                exit 0
             | _ ->
                 wait_for_dontwaitpid ?tracing ()
           in
@@ -349,9 +355,11 @@ let run ?tracing state comms_sock fd_sock fd_sock_path =
       Unix.close comms_sock ;
       Unix.close fd_sock ;
       Xapi_stdext_unix.Unixext.unlink_safe fd_sock_path ;
+      Tracing_export.Destination.flush_spans () ;
       exit 0
   | e ->
       debug "Caught unexpected exception: %s" (Printexc.to_string e) ;
       write_log () ;
       Xapi_stdext_unix.Unixext.unlink_safe fd_sock_path ;
+      Tracing_export.Destination.flush_spans () ;
       exit 1

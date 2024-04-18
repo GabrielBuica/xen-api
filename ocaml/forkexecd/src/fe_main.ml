@@ -6,7 +6,7 @@ let setup ?tracing sock cmdargs id_to_fd_map syslog_stdout
     match
       Tracing.Tracer.start
         ~tracer:(Tracing.get_tracer ~name:"fe_main.setup")
-        ~attributes:[] ~name:"setup" ~parent:tracing ()
+        ~attributes:[] ~name:"fe_main.setup" ~parent:tracing ()
     with
     | Ok span ->
         span
@@ -103,9 +103,7 @@ let setup ?tracing sock cmdargs id_to_fd_map syslog_stdout
         | _ ->
             None
       in
-      let response =
-        Child.run ?tracing:tracing1 state sock fd_sock fd_sock_path
-      in
+      let response = Child.run ?tracing state sock fd_sock fd_sock_path in
       ignore @@ Tracing.Tracer.finish tracing1 ;
       ignore @@ Tracing.Tracer.finish tracing ;
       response
