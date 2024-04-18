@@ -138,13 +138,24 @@ let handle_sigchld comms_sock args pid _signum =
     exit 0
   )
 
-let run state comms_sock fd_sock fd_sock_path =
+let run ?tracing state comms_sock fd_sock fd_sock_path =
   let rec inner state =
     let state = handle_comms comms_sock fd_sock state in
     if state.finished then state else inner state
   in
 
   try
+    let tracing1 =
+      match
+        Tracing.Tracer.start
+          ~tracer:(Tracing.get_tracer "child.part1")
+          ~attributes:[] ~name:"setup" ~parent:tracing ()
+      with
+      | Ok span ->
+          span
+      | _ ->
+          None
+    in
     debug "Started: state.cmdargs = [%s]" (String.concat ";" state.cmdargs) ;
     debug "Started: state.env = [%s]" (String.concat ";" state.env) ;
 
@@ -206,6 +217,7 @@ let run state comms_sock fd_sock fd_sock_path =
       out_childlogging := Some out_fd
     ) ;
 
+    ignore @@ Tracing.Tracer.finish tracing1 ;
     let result = Unix.fork () in
 
     if result = 0 then (
@@ -276,12 +288,24 @@ let run state comms_sock fd_sock fd_sock_path =
          We now temporarily block SIGCHLD to avoid a race. *)
       let (_ : int list) = Unix.sigprocmask Unix.SIG_BLOCK [Sys.sigchld] in
 
+      let tracing =
+        match
+          Tracing.Tracer.start
+            ~tracer:(Tracing.get_tracer "child.waitingpid")
+            ~attributes:[] ~name:"setup" ~parent:tracing ()
+        with
+        | Ok span ->
+            span
+        | _ ->
+            None
+      in
       (* First test whether the child has exited - if it has then report this
          * via the socket and exit. *)
       match Unix.waitpid [Unix.WNOHANG] result with
       | pid, status when pid = result ->
           report_child_exit comms_sock args result status ;
           Unix.close comms_sock ;
+          ignore @@ Tracing.Tracer.finish tracing ;
           exit 0
       | _ ->
           () ;
@@ -302,14 +326,19 @@ let run state comms_sock fd_sock fd_sock_path =
              client to send us Dontwaitpid, which signals it won't ever want to
              waitpid the child. If this is received we can exit, and the child will
              continue with init as its parent. *)
-          let rec wait_for_dontwaitpid () =
+          let rec wait_for_dontwaitpid ?tracing () =
+            Tracing.Tracer.with_tracing ~parent:tracing
+              ~name:"child.rec_wait_dont_wait"
+            @@ fun tracing ->
             match Fecomms.read_raw_rpc comms_sock with
             | Ok Fe.Dontwaitpid ->
                 Unix.close comms_sock ; exit 0
             | _ ->
-                wait_for_dontwaitpid ()
+                wait_for_dontwaitpid ?tracing ()
           in
-          wait_for_dontwaitpid ()
+          let result = wait_for_dontwaitpid ?tracing () in
+          ignore @@ Tracing.Tracer.finish tracing ;
+          result
     )
   with
   | Cancelled ->

@@ -46,7 +46,7 @@ let setup ?tracing sock cmdargs id_to_fd_map syslog_stdout
         ; finished= false
         }
       in
-      let response = Child.run state sock fd_sock fd_sock_path in
+      let response = Child.run ?tracing state sock fd_sock fd_sock_path in
       ignore @@ Tracing.Tracer.finish tracing ;
       response
     ) else (* Child *)
