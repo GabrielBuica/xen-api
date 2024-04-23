@@ -84,9 +84,9 @@ let validate_attribute (key, value) =
   && Re.execp attribute_key_regex key
   && W3CBaggage.Key.is_valid_key key
 
-let observe = ref true
+let observe = Atomic.make false
 
-let set_observe mode = observe := mode
+let set_observe = Atomic.set observe
 
 module SpanKind = struct
   type t = Server | Consumer | Client | Producer | Internal [@@deriving rpcty]
@@ -567,11 +567,14 @@ let set ?enabled ?attributes ?endpoints ~uuid () =
     List.for_all
       (fun provider -> not provider.TracerProvider.enabled)
       (get_tracer_providers ())
-  then
+  then (
+    set_observe false ;
     Xapi_stdext_threads.Threadext.Mutex.execute Spans.lock (fun () ->
         Hashtbl.clear Spans.spans ;
         Hashtbl.clear Spans.finished_spans
     )
+  ) else
+    set_observe true
 
 let create ~enabled ~attributes ~endpoints ~name_label ~uuid =
   let endpoints = List.map endpoint_of_string endpoints in
@@ -599,12 +602,10 @@ let destroy ~uuid =
 let get_tracer ~name =
   let providers =
     Xapi_stdext_threads.Threadext.Mutex.execute lock (fun () ->
-        Hashtbl.fold (fun _k v acc -> v :: acc) tracer_providers []
+        get_tracer_providers ()
     )
   in
-  match
-    List.find_opt (fun provider -> provider.TracerProvider.enabled) providers
-  with
+  match List.find_opt TracerProvider.get_enabled providers with
   | Some provider ->
       Tracer.create ~name ~provider
   | None ->
@@ -615,7 +616,7 @@ let enable_span_garbage_collector ?(timeout = 86400.) () =
   Spans.GC.initialise_thread ~timeout
 
 let with_tracing ?(attributes = []) ?(parent = None) ~name f =
-  if not !observe then
+  if not (Atomic.get observe) then
     f None
   else
     let tracer = get_tracer ~name in
