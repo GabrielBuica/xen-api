@@ -126,7 +126,9 @@ module Tracer : sig
     -> (Span.t option, exn) result
 
   val finish :
-    ?error:exn * string -> Span.t option -> (Span.t option, exn) result
+       ?error:exn * Printexc.raw_backtrace
+    -> Span.t option
+    -> (Span.t option, exn) result
 
   val span_is_finished : Span.t option -> bool
 
