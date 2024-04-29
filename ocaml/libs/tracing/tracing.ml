@@ -86,7 +86,9 @@ let validate_attribute (key, value) =
 
 let observe = Atomic.make false
 
-let set_observe = Atomic.set observe
+let set_observe flag =
+  debug "%s sets mode to %B" __FUNCTION__ flag ;
+  Atomic.set observe flag
 
 module SpanKind = struct
   type t = Server | Consumer | Client | Producer | Internal [@@deriving rpcty]
