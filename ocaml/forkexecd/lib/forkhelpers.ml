@@ -146,7 +146,8 @@ let getpid (_sock, pid) = pid
 
 type 'a result = Success of string * 'a | Failure of string * exn
 
-let temp_dir_server = runtime_path ^ "/run/nonpersistent/forkexecd/"
+let temp_dir_server =
+  Filename.concat runtime_path "/run/nonpersistent/forkexecd/"
 
 let temp_dir =
   try
@@ -185,10 +186,10 @@ type syslog_stdout =
 let safe_close_and_exec ?tracing ?env stdin stdout stderr
     (fds : (string * Unix.file_descr) list) ?(syslog_stdout = NoSyslogging)
     ?(redirect_stderr_to_stdout = false) (cmd : string) (args : string list) =
-  with_tracing ~tracing ~name:"safe_close_and_exec" @@ fun tracing ->
+  with_tracing ~tracing ~name:__FUNCTION__ @@ fun tracing ->
   let sock =
     Fecomms.open_unix_domain_sock_client ?tracing
-      (runtime_path ^ "/xapi/forker/main")
+      (Filename.concat runtime_path "/xapi/forker/main")
   in
   let stdinuuid = Uuidx.(to_string (make ())) in
   let stdoutuuid = Uuidx.(to_string (make ())) in
@@ -373,14 +374,13 @@ let execute_command_get_output_inner ?tracing ?env ?stdin
 
 let execute_command_get_output ?tracing ?env ?(syslog_stdout = NoSyslogging)
     ?(redirect_stderr_to_stdout = false) ?timeout cmd args =
-  with_tracing ~tracing ~name:"execute_command_get_output" @@ fun tracing ->
+  with_tracing ~tracing ~name:__FUNCTION__ @@ fun tracing ->
   execute_command_get_output_inner ?tracing ?env ?stdin:None ?timeout
     ~syslog_stdout ~redirect_stderr_to_stdout cmd args
 
 let execute_command_get_output_send_stdin ?tracing ?env
     ?(syslog_stdout = NoSyslogging) ?(redirect_stderr_to_stdout = false)
     ?timeout cmd args stdin =
-  with_tracing ~tracing ~name:"execute_command_get_output_send_stdin"
-  @@ fun tracing ->
+  with_tracing ~tracing ~name:__FUNCTION__ @@ fun tracing ->
   execute_command_get_output_inner ?tracing ?env ~stdin ~syslog_stdout
     ~redirect_stderr_to_stdout ?timeout cmd args

@@ -13,11 +13,11 @@ let with_tracing ~tracing ~name f =
   Tracing.with_tracing ~parent:tracing ~name f
 
 let open_unix_domain_sock ?tracing () =
-  with_tracing ~tracing ~name:"open_unix_domain_sock" @@ fun _ ->
+  with_tracing ~tracing ~name:__FUNCTION__ @@ fun _ ->
   Unix.socket Unix.PF_UNIX Unix.SOCK_STREAM 0
 
 let open_unix_domain_sock_server ?tracing path =
-  with_tracing ~tracing ~name:"open_unix_domain_sock_server" @@ fun tracing ->
+  with_tracing ~tracing ~name:__FUNCTION__ @@ fun tracing ->
   Unixext.mkdir_rec (Filename.dirname path) 0o755 ;
   Unixext.unlink_safe path ;
   let sock = open_unix_domain_sock ?tracing () in
@@ -28,7 +28,7 @@ let open_unix_domain_sock_server ?tracing path =
   with e -> Unix.close sock ; raise e
 
 let open_unix_domain_sock_client ?tracing path =
-  with_tracing ~tracing ~name:"open_unix_domain_sock_client" @@ fun tracing ->
+  with_tracing ~tracing ~name:__FUNCTION__ @@ fun tracing ->
   let sock = open_unix_domain_sock ?tracing () in
   try
     Unix.connect sock (Unix.ADDR_UNIX path) ;
@@ -36,7 +36,7 @@ let open_unix_domain_sock_client ?tracing path =
   with e -> Unix.close sock ; raise e
 
 let read_raw_rpc ?tracing sock =
-  with_tracing ~tracing ~name:"read_raw_rpc" @@ fun _ ->
+  with_tracing ~tracing ~name:__FUNCTION__ @@ fun _ ->
   let buffer = Bytes.make 12 '\000' in
   Unixext.really_read sock buffer 0 12 ;
   let header = Bytes.unsafe_to_string buffer in
@@ -49,7 +49,7 @@ let read_raw_rpc ?tracing sock =
       Error ("Header is not an integer: " ^ header)
 
 let write_raw_rpc ?tracing sock ferpc =
-  with_tracing ~tracing ~name:"write_raw_rpc" @@ fun tracing ->
+  with_tracing ~tracing ~name:__FUNCTION__ @@ fun tracing ->
   let ferpc = update_ferpc_env tracing ferpc in
   let body = Jsonrpc.to_string (Fe.rpc_of_ferpc ferpc) in
   let len = String.length body in
@@ -59,7 +59,7 @@ let write_raw_rpc ?tracing sock ferpc =
 exception Connection_closed
 
 let receive_named_fd ?tracing sock =
-  with_tracing ~tracing ~name:"receive_named_fd" @@ fun _ ->
+  with_tracing ~tracing ~name:__FUNCTION__ @@ fun _ ->
   let buffer = Bytes.make 36 '\000' in
   let len, _from, newfd = Unixext.recv_fd sock buffer 0 36 [] in
   let buffer = Bytes.unsafe_to_string buffer in
@@ -67,5 +67,5 @@ let receive_named_fd ?tracing sock =
   (newfd, buffer)
 
 let send_named_fd ?tracing sock uuid fd =
-  with_tracing ~tracing ~name:"send_named_fd" @@ fun _ ->
+  with_tracing ~tracing ~name:__FUNCTION__ @@ fun _ ->
   ignore (Unixext.send_fd_substring sock uuid 0 (String.length uuid) [] fd)
