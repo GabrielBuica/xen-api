@@ -309,6 +309,7 @@ module Dom0ObserverConfig (ObserverComponent : OBSERVER_COMPONENT) :
 
   let update_config ~__context ~observer ~uuid =
     if Db.Observer.get_enabled ~__context ~self:observer then (
+      Tracing.set_observe true;
       let observer_config =
         ObserverConfig.config_of_observer ~__context
           ~component:ObserverComponent.component ~observer
