@@ -773,6 +773,7 @@ exception Client_requested_size_over_limit
 
 (** Read the body of an HTTP request (requires a content-length: header). *)
 let read_body ?limit req bio =
+  let@ _ = Tracing.with_child_trace ~name:"read_body" req.Request.http_span in
   match req.Request.content_length with
   | None ->
       failwith "We require a content-length: HTTP header"
