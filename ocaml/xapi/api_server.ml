@@ -339,7 +339,13 @@ let callback is_json req bio _ =
            (Rpc.failure
               (Rpc.Enum (List.map (fun s -> Rpc.String s) (err :: params)))
            )
-        )
+        ) ;
+      let (_ : _ result) =
+        Tracing.Tracer.finish
+          ~error:(Rpc_failure err, Printexc.get_callstack 0)
+          req.body_span
+      in
+      ()
   | e ->
       Backtrace.is_important e ; raise e
 
