@@ -373,7 +373,9 @@ let set_socket_timeout fd t =
     (* In the unit tests, the fd comes from a pipe... ignore *)
     ()
 
-let read_http_request_header ~read_timeout ~total_timeout ~max_length fd =
+let (let@) f x = f x
+
+let read_http_request_header ~read_timeout ~total_timeout ~max_length get_or_make_span fd =
   Option.iter (fun t -> set_socket_timeout fd t) read_timeout ;
   let buf = Bytes.create (Option.value ~default:1024 max_length) in
   let deadline =
@@ -395,6 +397,8 @@ let read_http_request_header ~read_timeout ~total_timeout ~max_length fd =
     Unixext.really_read fd buf x y
   in
   check_timeout_and_read 0 6 ;
+  let span = get_or_make_span () in
+  let@ _ = Tracing.with_child_trace span ~name:"read_http_request_header" in
   (* return PROXY header if it exists, and then read up to FRAME header length (which also may not exist) *)
   let proxy =
     match Bytes.sub_string buf 0 6 with
@@ -420,7 +424,7 @@ let read_http_request_header ~read_timeout ~total_timeout ~max_length fd =
         (true, length)
   in
   set_socket_timeout fd 0. ;
-  (frame, Bytes.sub_string buf 0 headers_length, proxy)
+  (span, frame, Bytes.sub_string buf 0 headers_length, proxy)
 
 let read_http_response_header buf fd =
   Unixext.really_read fd buf 0 frame_header_length ;

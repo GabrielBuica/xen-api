@@ -97,6 +97,8 @@ let response_of_request req hdrs =
     ~headers:(connection :: cache :: hdrs)
     "200" "OK"
 
+let ( let@ ) f x = f x
+
 let response_fct req ?(hdrs = []) s (response_length : int64)
     (write_response_to_fd_fn : Unix.file_descr -> unit) =
   let res =
@@ -348,11 +350,12 @@ exception Generic_error of string
 
 (** [request_of_bio_exn ic] reads a single Http.req from [ic] and returns it. On error
     	it simply throws an exception and doesn't touch the output stream. *)
-let request_of_bio_exn ~proxy_seen ~read_timeout ~total_timeout ~max_length bio
-    =
+let request_of_bio_exn ~proxy_seen ~read_timeout ~total_timeout ~max_length span
+    bio =
   let fd = Buf_io.fd_of bio in
-  let frame, headers, proxy' =
-    Http.read_http_request_header ~read_timeout ~total_timeout ~max_length fd
+  let span, frame, headers, proxy' =
+    Http.read_http_request_header span ~read_timeout ~total_timeout ~max_length
+      fd
   in
   let proxy = match proxy' with None -> proxy_seen | x -> x in
   let additional_headers =
@@ -434,7 +437,7 @@ let request_of_bio_exn ~proxy_seen ~read_timeout ~total_timeout ~max_length bio
 let request_of_bio ?proxy_seen ~read_timeout ~total_timeout ~max_length ic =
   try
     let r, proxy =
-      request_of_bio_exn ~proxy_seen ~read_timeout ~total_timeout ~max_length ic
+      request_of_bio_exn ~proxy_seen ~read_timeout ~total_timeout ~max_length (fun () -> None) ic
     in
     (Some r, proxy)
   with e ->

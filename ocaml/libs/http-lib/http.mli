@@ -42,8 +42,9 @@ val read_http_request_header :
      read_timeout:float option
   -> total_timeout:float option
   -> max_length:int option
+  -> (unit -> Tracing.Span.t option)
   -> Unix.file_descr
-  -> bool * string * string option
+  -> Tracing.Span.t option * bool * string * string option
 
 val read_http_response_header : bytes -> Unix.file_descr -> int
 
