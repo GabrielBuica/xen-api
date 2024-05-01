@@ -214,6 +214,16 @@ let response_internal_error ?span ?req ?extra exc s =
     ^ extra
     ^ "</body></html>"
   in
+  let span =
+    match (span, req) with
+    | None, None ->
+        None
+    | Some span, _ ->
+        span
+    | None, Some r ->
+        r.body_span
+  in
+  let (_ : _ result) = Tracing.Tracer.finish ~error:(exc, backtrace) span in
   response_error_html ?version s "500" "Internal Error" [] body
 
 let response_method_not_implemented ?req s =
