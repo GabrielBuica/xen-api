@@ -557,6 +557,19 @@ module Accept = struct
 end
 
 module Request = struct
+  type span_opt = Tracing.Span.t option
+
+  let rpc_of_span_opt =
+    Option.fold ~none:Rpc.Null ~some:(fun span ->
+        span
+        |> Tracing.Span.get_context
+        |> Tracing.SpanContext.span_id_of_span_context
+        |> Rpc.rpc_of_string
+    )
+
+  (* rpc is only used for debugging, no need to convert back *)
+  let span_opt_of_rpc _ = None
+
   type t = {
       m: method_t
     ; uri: string
@@ -577,6 +590,8 @@ module Request = struct
     ; additional_headers: (string * string) list
     ; body: string option
     ; traceparent: string option
+    ; mutable http_span: span_opt
+    ; mutable body_span: span_opt
   }
   [@@deriving rpc]
 
@@ -601,6 +616,8 @@ module Request = struct
     ; additional_headers= []
     ; body= None
     ; traceparent= None
+    ; http_span = None
+    ; body_span= None
     }
 
   let make ?(frame = false) ?(version = "1.1") ?(keep_alive = true) ?accept
@@ -657,6 +674,8 @@ module Request = struct
             ; additional_headers= []
             ; body= None
             ; traceparent= None
+            ; http_span = None
+            ; body_span= None
             }
         | None ->
             error "Failed to parse: %s" x ;

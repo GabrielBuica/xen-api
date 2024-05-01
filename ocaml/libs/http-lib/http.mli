@@ -87,6 +87,8 @@ module Request : sig
     ; additional_headers: (string * string) list
     ; body: string option
     ; traceparent: string option
+    ; mutable http_span: Tracing.Span.t option
+    ; mutable body_span: Tracing.Span.t option
   }
 
   val rpc_of_t : t -> Rpc.t
