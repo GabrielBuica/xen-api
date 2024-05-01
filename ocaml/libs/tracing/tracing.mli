@@ -87,6 +87,8 @@ module Span : sig
 
   val get_name : t -> string
 
+  val set_name : t -> ?attributes:(string*string) list -> string -> t
+
   val get_parent : t -> t option
 
   val get_begin_time : t -> float
@@ -126,7 +128,8 @@ module Tracer : sig
     -> (Span.t option, exn) result
 
   val finish :
-       ?error:exn * Printexc.raw_backtrace
+       ?leave_unset:bool
+    -> ?error:exn * Printexc.raw_backtrace
     -> Span.t option
     -> (Span.t option, exn) result
 
@@ -235,3 +238,11 @@ module EnvHelpers : sig
       If [span] is [None], it returns an empty list.
       *)
 end
+val with_child_trace :
+     ?attributes:(string * string) list
+  -> Span.t option
+  -> name:string
+  -> (Span.t option -> 'a)
+  -> 'a
+(** [with_child_trace ?attributes parent ~name f] is like {!val:with_tracing}, but
+  only creates a span if the [parent] span exists. *)
