@@ -179,8 +179,11 @@ let is_access_allowed ~__context ~session_id ~permission =
 (* Execute fn if rbac access is allowed for action, otherwise fails. *)
 let nofn () = ()
 
+let (let@) f x = f x
+
 let check ?(extra_dmsg = "") ?(extra_msg = "") ?args ?(keys = []) ~__context ~fn
     session_id action =
+  let@ _ = Tracing.with_child_trace ~name:"Rbac.check" (Context.tracing_of __context) in
   let permission = permission_of_action action ?args ~keys in
   if is_access_allowed ~__context ~session_id ~permission then (
     (* allow access to action *)
