@@ -359,6 +359,12 @@ let jsoncallback req bio _ =
   in
   try
     let json_rpc_version, id, rpc =
+      let attributes = [("size", string_of_int (String.length body))] in
+      let@ _ =
+        Tracing.with_child_trace ~attributes
+          ~name:"Jsonrpc.version_id_and_call_of_string"
+          req.Http.Request.body_span
+      in
       Jsonrpc.version_id_and_call_of_string body
     in
     let rpc_response = callback1 ~json_rpc_version true req fd rpc in
