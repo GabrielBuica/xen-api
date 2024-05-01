@@ -922,19 +922,23 @@ let http_update_span_client span response =
       Some span
 
 let client_of_req_and_fd req fd =
-  match https_client_of_req req with
-  | Some client ->
-      Some (Https, client)
-  | None -> (
-    match Unix.getpeername fd with
-    | Unix.ADDR_INET (addr, _) ->
-        addr
-        |> Unix.string_of_inet_addr
-        |> clean_addr_of_string
-        |> Option.map (fun ip -> (Http, ip))
-    | Unix.ADDR_UNIX _ | (exception _) ->
-        None
-  )
+  let response =
+    match https_client_of_req req with
+    | Some client ->
+        Some (Https, client)
+    | None -> (
+      match Unix.getpeername fd with
+      | Unix.ADDR_INET (addr, _) ->
+          addr
+          |> Unix.string_of_inet_addr
+          |> clean_addr_of_string
+          |> Option.map (fun ip -> (Http, ip))
+      | Unix.ADDR_UNIX _ | (exception _) ->
+          None
+    )
+  in
+  req.http_span <- http_update_span_client req.http_span response ;
+  response
 
 let string_of_client (protocol, ip) =
   Printf.sprintf "%s %s" (string_of_protocol protocol) (Ipaddr.to_string ip)
