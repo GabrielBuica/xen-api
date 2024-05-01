@@ -498,24 +498,27 @@ let request_of_bio_exn ~proxy_seen ~read_timeout ~total_timeout ~max_length span
          (false, {empty with Http.Request.frame; additional_headers})
     |> snd
   in
-  (request, proxy)
+  ({request with http_span= http_update_span_name request span}, proxy)
 
 (** [request_of_bio ic] returns [Some req] read from [ic], or [None]. If [None] it will have
     	already sent back a suitable error code and response to the client. *)
-let request_of_bio ?proxy_seen ~read_timeout ~total_timeout ~max_length ic =
+let request_of_bio ?proxy_seen ~read_timeout ~total_timeout ~max_length span ic
+    =
   try
     let r, proxy =
-      request_of_bio_exn ~proxy_seen ~read_timeout ~total_timeout ~max_length (fun () -> None) ic
+      request_of_bio_exn ~proxy_seen ~read_timeout ~total_timeout ~max_length
+        span ic
     in
     (Some r, proxy)
   with e ->
     D.warn "%s (%s)" (Printexc.to_string e) __LOC__ ;
     best_effort (fun () ->
+        let span = span () in
         let ss = Buf_io.fd_of ic in
         match e with
         (* Specific errors thrown during parsing *)
         | Http.Http_parse_failure ->
-            response_internal_error e ss
+            response_internal_error e ss ~span
               ~extra:"The HTTP headers could not be parsed." ;
             debug "Error parsing HTTP headers"
         | Buf_io.Timeout ->
@@ -622,7 +625,7 @@ let handle_connection ~header_read_timeout ~header_total_timeout
     (* 1. we must successfully parse a request *)
     let req, proxy =
       request_of_bio ?proxy_seen ~read_timeout ~total_timeout
-        ~max_length:max_header_length ic
+        ~max_length:max_header_length (fun () -> None) ic
     in
     (* 2. now we attempt to process the request *)
     let finished =
