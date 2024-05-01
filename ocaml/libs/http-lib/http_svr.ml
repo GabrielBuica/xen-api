@@ -108,6 +108,7 @@ let response_fct req ?(hdrs = []) s (response_length : int64)
     }
   in
   D.debug "Response %s" (Http.Response.to_string res) ;
+  let@ _ = Tracing.with_child_trace req.http_span ~name:"response_fct" in
   Unixext.really_write_string s (Http.Response.to_wire_string res) ;
   write_response_to_fd_fn s
 
@@ -165,21 +166,39 @@ let response_badrequest ?req s =
   in
   response_error_html ?version s "400" "Bad Request" [] body
 
-let response_request_timeout s =
+let response_request_timeout ~span s =
   let body =
     "<html><body><h1>HTTP 408 request timeout</h1>Timed out waiting for the \
      request.</body></html>"
   in
+  let (_ : _ result) =
+    Tracing.Tracer.finish
+      ~error:
+        ( Unix.Unix_error (Unix.ETIMEDOUT, "response_request_timeout", "")
+        , Printexc.get_callstack 0
+        )
+      span
+  in
   response_error_html s "408" "Request Timeout" [] body
 
-let response_request_header_fields_too_large s =
+let response_request_header_fields_too_large span s =
   let body =
     "<html><body><h1>HTTP 431 request header fields too large</h1>Exceeded the \
      maximum header size.</body></html>"
   in
+  let (_ : _ result) =
+    Tracing.Tracer.finish
+      ~error:
+        ( Unix.Unix_error
+            (Unix.EINVAL, "response_request_header_fields_too_large", "")
+        , Printexc.get_callstack 0
+        )
+      span
+  in
   response_error_html s "431" "Request Header Fields Too Large" [] body
 
-let response_internal_error ?req ?extra exc s =
+let response_internal_error ?span ?req ?extra exc s =
+  let backtrace = Printexc.get_raw_backtrace () in
   E.error "Responding with 500 Internal Error due to %s" (Printexc.to_string exc) ;
   E.log_backtrace () ;
   let version = Option.map get_return_version req in
@@ -463,9 +482,9 @@ let request_of_bio ?proxy_seen ~read_timeout ~total_timeout ~max_length ic =
         | End_of_file ->
             ()
         | Unix.Unix_error (Unix.EAGAIN, _, _) | Http.Timeout ->
-            response_request_timeout ss
+            response_request_timeout ss ~span:None
         | Http.Too_large ->
-            response_request_header_fields_too_large ss
+            response_request_header_fields_too_large None ss
         (* Premature termination of connection! *)
         | Unix.Unix_error (a, b, c) ->
             response_internal_error e ss
