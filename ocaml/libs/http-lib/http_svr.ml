@@ -894,6 +894,33 @@ let https_client_of_req req =
         None
   )
 
+let http_update_span_client span response =
+  match span with
+  | None ->
+      None
+  | Some span ->
+      let scheme, client =
+        match response with
+        | Some (Https, client) ->
+            ("https", Some client)
+        | Some (Http, client) ->
+            ("http", Some client)
+        | None ->
+            ("unix", None)
+      in
+      let attributes =
+        match client with
+        | None ->
+            []
+        | Some ip ->
+            [("client.address", Ipaddr.to_string ip)]
+      in
+      let attributes = ("url.scheme", scheme) :: attributes in
+      let span =
+        Tracing.Span.set_name ~attributes span (Tracing.Span.get_name span)
+      in
+      Some span
+
 let client_of_req_and_fd req fd =
   match https_client_of_req req with
   | Some client ->
