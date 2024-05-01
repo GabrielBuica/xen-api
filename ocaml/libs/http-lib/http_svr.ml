@@ -607,6 +607,28 @@ let handle_one (x : 'a Server.t) ss context req =
     ) ;
     !finished
 
+let finish_and_link ~tracer = function
+  | None ->
+      None
+  | Some span as current ->
+      let current, next_span =
+        match
+          Tracing.Tracer.start ~tracer ~name:"HTTP wait request" ~parent:None ()
+        with
+        | Error _ ->
+            (None, None (* too early, don't spam logs *))
+        | Ok (Some next_span as ok) ->
+            let span =
+              Tracing.Span.add_link span (Tracing.Span.get_context next_span) []
+            in
+            (Some span, ok)
+        | Ok None ->
+            (current, None)
+      in
+      (* semantic conventions for http say to leave unset when successful *)
+      let (_ : _ result) = Tracing.Tracer.finish ~leave_unset:true current in
+      next_span
+
 let handle_connection ~header_read_timeout ~header_total_timeout
     ~max_header_length (x : 'a Server.t) Server_io.{tracer; span} caller ss =
   ( match caller with
