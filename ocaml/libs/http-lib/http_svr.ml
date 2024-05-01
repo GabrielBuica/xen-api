@@ -532,7 +532,7 @@ let handle_one (x : 'a Server.t) ss context req =
     !finished
 
 let handle_connection ~header_read_timeout ~header_total_timeout
-    ~max_header_length (x : 'a Server.t) caller ss =
+    ~max_header_length (x : 'a Server.t) Server_io.{tracer; span} caller ss =
   ( match caller with
   | Unix.ADDR_UNIX _ ->
       debug "Accepted unix connection"
