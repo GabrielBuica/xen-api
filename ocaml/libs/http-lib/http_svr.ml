@@ -565,6 +565,8 @@ let handle_one (x : 'a Server.t) ss context req =
       Option.value ~default:empty
         (Radix_tree.longest_prefix req.Request.uri method_map)
     in
+    let@ body_span = Tracing.with_child_trace req.http_span ~name:"handler" in
+    req.body_span <- body_span ;
     ( match te.TE.handler with
     | BufIO handlerfn ->
         handlerfn req ic context
