@@ -320,7 +320,16 @@ let callback is_json req bio _ =
         )
       fd
       (Int64.of_int @@ String.length response_str)
-      (fun fd -> Unixext.really_write_string fd response_str |> ignore)
+      (fun fd ->
+        let attributes =
+          [("size", string_of_int (String.length response_str))]
+        in
+        let@ _ =
+          Tracing.with_child_trace ~attributes ~name:"callback_send_response"
+            req.http_span
+        in
+        Unixext.really_write_string fd response_str |> ignore
+      )
   with
   | Api_errors.Server_error (err, params) ->
       Http_svr.response_str req
