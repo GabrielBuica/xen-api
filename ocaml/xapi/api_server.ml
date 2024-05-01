@@ -385,7 +385,14 @@ let jsoncallback req bio _ =
         )
       fd
       (Int64.of_int @@ String.length response)
-      (fun fd -> Unixext.really_write_string fd response |> ignore)
+      (fun fd ->
+        let attributes = [("size", string_of_int (String.length response))] in
+        let@ _ =
+          Tracing.with_child_trace ~attributes ~name:"callback_send_response"
+            req.http_span
+        in
+        Unixext.really_write_string fd response |> ignore
+      )
   with Api_errors.Server_error (err, params) ->
     Http_svr.response_str req
       ~hdrs:[(Http.Hdr.content_type, "application/json")]
