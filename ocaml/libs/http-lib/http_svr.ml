@@ -424,6 +424,7 @@ let request_of_bio_exn ~proxy_seen ~read_timeout ~total_timeout ~max_length span
     Http.read_http_request_header span ~read_timeout ~total_timeout ~max_length
       fd
   in
+  let@ _ = Tracing.with_child_trace span ~name:"request_of_bio_exn" in
   let proxy = match proxy' with None -> proxy_seen | x -> x in
   let additional_headers =
     proxy |> Option.fold ~none:[] ~some:(fun p -> [("STUNNEL_PROXY", p)])
