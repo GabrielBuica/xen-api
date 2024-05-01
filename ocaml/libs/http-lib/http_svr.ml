@@ -645,11 +645,11 @@ let handle_connection ~header_read_timeout ~header_total_timeout
      just once per connection. To allow for the PROXY metadata (including e.g. the
      client IP) to be added to all request records on a connection, it must be passed
      along in the loop below. *)
-  let rec loop ~read_timeout ~total_timeout proxy_seen =
+  let rec loop ~read_timeout ~total_timeout span proxy_seen =
     (* 1. we must successfully parse a request *)
     let req, proxy =
       request_of_bio ?proxy_seen ~read_timeout ~total_timeout
-        ~max_length:max_header_length (fun () -> None) ic
+        ~max_length:max_header_length span ic
     in
     (* 2. now we attempt to process the request *)
     let finished =
@@ -657,11 +657,25 @@ let handle_connection ~header_read_timeout ~header_total_timeout
         ~some:(handle_one x ss x.Server.default_context)
         req
     in
+    let span = match req with None -> None | Some r -> r.http_span in
     (* 3. do it again if the connection is kept open, but without timeouts *)
     if not finished then
-      loop ~read_timeout:None ~total_timeout:None proxy
+      let span = finish_and_link ~tracer span in
+      let next_span () =
+        let (_ : _ result) = Tracing.Tracer.finish span in
+        match Tracing.Tracer.start ~tracer ~name:"HTTP" ~parent:None () with
+        | Error _ ->
+            None (* too early, don't spam logs *)
+        | Ok span ->
+            span
+      in
+      loop ~read_timeout:None ~total_timeout:None next_span proxy
+    else
+      let _ : _ result = Tracing.Tracer.finish span in
+      ()
   in
   loop ~read_timeout:header_read_timeout ~total_timeout:header_total_timeout
+    (fun () -> span)
     None ;
   debug "Closing connection" ;
   Unix.close ss
