@@ -528,24 +528,24 @@ let request_of_bio ?proxy_seen ~read_timeout ~total_timeout ~max_length span ic
             ()
         (* Connection terminated *)
         | Buf_io.Line _ ->
-            response_internal_error e ss
+            response_internal_error e ss ~span
               ~extra:"One of the header lines was too long."
         (* Generic errors thrown during parsing *)
         | End_of_file ->
             ()
         | Unix.Unix_error (Unix.EAGAIN, _, _) | Http.Timeout ->
-            response_request_timeout ss ~span:None
+            response_request_timeout ss ~span
         | Http.Too_large ->
-            response_request_header_fields_too_large None ss
+            response_request_header_fields_too_large span ss
         (* Premature termination of connection! *)
         | Unix.Unix_error (a, b, c) ->
-            response_internal_error e ss
+            response_internal_error e ss ~span
               ~extra:
                 (Printf.sprintf "Got UNIX error: %s %s %s"
                    (Unix.error_message a) b c
                 )
         | exc ->
-            response_internal_error exc ss
+            response_internal_error exc ss ~span
               ~extra:(escape (Printexc.to_string exc)) ;
             log_backtrace ()
     ) ;
