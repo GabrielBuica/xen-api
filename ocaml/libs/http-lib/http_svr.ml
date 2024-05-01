@@ -377,6 +377,44 @@ let escape uri =
 
 exception Generic_error of string
 
+let ( let@ ) f x = f x
+
+let http_update_span_name req = function
+  | None ->
+      None
+  | Some span ->
+      let http_method = Http.string_of_method_t req.Request.m in
+      let name = String.concat " " [http_method; req.Request.uri] in
+      let addr_port =
+        req.Request.host
+        |> Option.fold ~none:[] ~some:(fun host ->
+               Scanf.sscanf host "%s:%d" @@ fun server port ->
+               [("server.address", server); ("server.port", string_of_int port)]
+           )
+      and user_agent =
+        req.Request.user_agent
+        |> Option.fold ~none:[] ~some:(fun ua -> [("user_agent.original", ua)])
+      in
+      let attributes =
+        List.concat
+          [
+            [
+              ("http.request.method", http_method)
+            ; ("network.protocol.version", req.Request.version)
+            ; ("url.path", req.Request.uri)
+              (* to be filled in by http_update_span_client:
+                 url.scheme
+                 client.address
+              *)
+              (*;"url.query", req.Request.query could this contain secrets, e.g. for wsproxy? *)
+            ]
+          ; addr_port
+          ; user_agent
+          ]
+      in
+      let span = Tracing.Span.set_name ~attributes span name in
+      Some span
+
 (** [request_of_bio_exn ic] reads a single Http.req from [ic] and returns it. On error
     	it simply throws an exception and doesn't touch the output stream. *)
 let request_of_bio_exn ~proxy_seen ~read_timeout ~total_timeout ~max_length span
