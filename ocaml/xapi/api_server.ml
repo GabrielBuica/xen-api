@@ -369,6 +369,10 @@ let jsoncallback req bio _ =
     in
     let rpc_response = callback1 ~json_rpc_version true req fd rpc in
     let response =
+      let@ _ =
+        Tracing.with_child_trace ~name:"Jsonrpc.string_of_response"
+          req.Http.Request.body_span
+      in
       Jsonrpc.string_of_response ~id ~version:json_rpc_version rpc_response
     in
     let thumbprint_header = create_thumbprint_header req rpc_response in
