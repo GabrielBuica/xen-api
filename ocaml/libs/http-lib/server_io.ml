@@ -47,8 +47,13 @@ let handler_by_thread ?nice tracer (h : handler) (s : Unix.file_descr)
   in
   Thread.create
     (fun () ->
-      Fun.protect
-        ~finally:(fun () -> Xapi_stdext_threads.Semaphore.release h.lock 1)
+      let finally () =
+        Xapi_stdext_threads.Semaphore.release h.lock 1 ;
+        if not (Tracing.Tracer.span_is_finished span) then
+          let (_ : _ result) = Tracing.Tracer.finish ~leave_unset:true span in
+          ()
+      in
+      Fun.protect ~finally
         (Debug.with_thread_named h.name (fun () ->
              Option.iter
                (fun nice ->
