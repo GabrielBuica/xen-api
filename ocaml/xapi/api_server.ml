@@ -276,6 +276,10 @@ let create_thumbprint_header req response =
 
 module Unixext = Xapi_stdext_unix.Unixext
 
+exception Rpc_failure of string
+
+let ( let@ ) f x = f x
+
 (** HTML callback that dispatches an RPC and returns the response. *)
 let callback is_json req bio _ =
   let fd = Buf_io.fd_of bio in
@@ -284,9 +288,19 @@ let callback is_json req bio _ =
     Http_svr.read_body ~limit:Constants.http_limit_max_rpc_size req bio
   in
   try
-    let rpc = Xmlrpc.call_of_string body in
+    let rpc =
+      let attributes = [("size", string_of_int (String.length body))] in
+      let@ _ =
+        Tracing.with_child_trace ~attributes ~name:"Xmlrpc.call_of_string"
+          req.body_span
+      in
+      Xmlrpc.call_of_string body
+    in
     let response = callback1 is_json req fd rpc in
     let response_str =
+      let@ _ =
+        Tracing.with_child_trace ~name:"Xmlrpc.string_of_response" req.http_span
+      in
       if rpc.Rpc.name = "system.listMethods" then
         let inner = Xmlrpc.to_string response.Rpc.contents in
         Printf.sprintf
