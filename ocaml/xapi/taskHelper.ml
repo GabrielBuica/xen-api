@@ -60,7 +60,8 @@ let compare_auth_user_ids_of_sessions ~__context s1 s2 =
   let s2_auth_user_sid =
     Db_actions.DB_Action.Session.get_auth_user_sid ~__context ~self:s2
   in
-  (*debug "task_auth_user_sid=%s,context_auth_user_sid=%s" task_auth_user_sid context_auth_user_sid;*)
+  debug "task_auth_user_sid=%s,context_auth_user_sid=%s" s1_auth_user_sid
+    s2_auth_user_sid ;
   s1_auth_user_sid = s2_auth_user_sid
 
 let assert_op_valid ?(ok_if_no_session_in_context = false) ~__context task_id =
@@ -91,6 +92,8 @@ let assert_op_valid ?(ok_if_no_session_in_context = false) ~__context task_id =
              to go theough their respective sessions.*)
           match Context.get_task_id __context = task_id with
           | true ->
+              debug "assert_op_valid: context task id is own_task: %s"
+                (Ref.really_pretty_and_small task_id) ;
               true
           | false ->
               compare_auth_user_ids_of_sessions ~__context context_session
