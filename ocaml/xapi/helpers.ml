@@ -546,6 +546,7 @@ let call_api_functions_internal ~__context f =
     )
 
 let call_api_functions ~__context f =
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
   match Context.get_test_rpc __context with
   | Some rpc ->
       f rpc (Ref.of_string "fake_session")
