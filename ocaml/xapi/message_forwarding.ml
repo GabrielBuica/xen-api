@@ -1185,7 +1185,7 @@ functor
         with _ -> ()
 
       let cancel ~__context ~vm ~ops =
-        Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+        Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
         let cancelled =
           List.filter_map
             (fun (task, op) ->

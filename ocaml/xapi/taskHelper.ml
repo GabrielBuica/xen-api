@@ -23,7 +23,7 @@ type t = API.ref_task
 (* creates a new task *)
 let make ~__context ~http_other_config ?(description = "") ?session_id
     ?subtask_of label : t * t Uuidx.t =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   let uuid = Uuidx.make () in
   let uuid_str = Uuidx.to_string uuid in
   let ref = Ref.make () in
@@ -55,7 +55,7 @@ let rbac_assert_permission_fn = ref None
 (* required to break dep-cycle with rbac.ml *)
 
 let compare_auth_user_ids_of_sessions ~__context s1 s2 =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   let s1_auth_user_sid =
     Db_actions.DB_Action.Session.get_auth_user_sid ~__context ~self:s1
   in
@@ -67,7 +67,7 @@ let compare_auth_user_ids_of_sessions ~__context s1 s2 =
   s1_auth_user_sid = s2_auth_user_sid
 
 let assert_op_valid ?(ok_if_no_session_in_context = false) ~__context task_id =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   let assert_permission_task_op_any () =
     match !rbac_assert_permission_fn with
     | None ->
@@ -116,7 +116,7 @@ let assert_op_valid ?(ok_if_no_session_in_context = false) ~__context task_id =
         assert_permission_task_op_any ()
 
 let get_name ~__context =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   let task_id = Context.get_task_id __context in
   if Ref.is_dummy task_id then
     Ref.name_of_dummy task_id
@@ -124,7 +124,7 @@ let get_name ~__context =
     Db.Task.get_name_label ~__context ~self:task_id
 
 let destroy ~__context task_id =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   if not (Ref.is_dummy task_id) then (
     assert_op_valid ~ok_if_no_session_in_context:true ~__context task_id ;
     Db_actions.DB_Action.Task.destroy ~__context ~self:task_id
@@ -140,31 +140,31 @@ let init () =
   Context.__make_task := make
 
 let operate_on_db_task ~__context f =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   if Context.task_in_database __context then
     f (Context.get_task_id __context)
 
 let set_description ~__context value =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   operate_on_db_task ~__context (fun self ->
       Db_actions.DB_Action.Task.set_name_description ~__context ~self ~value
   )
 
 let add_to_other_config ~__context key value =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   operate_on_db_task ~__context (fun self ->
       Db_actions.DB_Action.Task.remove_from_other_config ~__context ~self ~key ;
       Db_actions.DB_Action.Task.add_to_other_config ~__context ~self ~key ~value
   )
 
 let set_progress ~__context value =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   operate_on_db_task ~__context (fun self ->
       Db_actions.DB_Action.Task.set_progress ~__context ~self ~value
   )
 
 let set_external_pid ~__context pid =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   operate_on_db_task ~__context (fun self ->
       Db_actions.DB_Action.Task.set_externalpid ~__context ~self
         ~value:(Int64.of_int pid)
@@ -173,7 +173,7 @@ let set_external_pid ~__context pid =
 let clear_external_pid ~__context = set_external_pid ~__context (-1)
 
 let set_result_on_task ~__context task_id result =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   match result with
   | None ->
       ()
@@ -183,7 +183,7 @@ let set_result_on_task ~__context task_id result =
 
 (** Only set the result without completing the task. Useful for vm import *)
 let set_result ~__context result =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   operate_on_db_task ~__context (fun t -> set_result_on_task ~__context t result)
 
 let status_to_string = function
@@ -220,21 +220,21 @@ let complete ~__context result =
   )
 
 let set_cancellable ~__context =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   operate_on_db_task ~__context (fun self ->
       Db_actions.DB_Action.Task.set_allowed_operations ~__context ~self
         ~value:[`cancel]
   )
 
 let set_not_cancellable ~__context =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   operate_on_db_task ~__context (fun self ->
       Db_actions.DB_Action.Task.set_allowed_operations ~__context ~self
         ~value:[]
   )
 
 let is_cancelling ~__context =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   Context.task_in_database __context
   &&
   let l =
@@ -244,12 +244,12 @@ let is_cancelling ~__context =
   List.exists (fun (_, x) -> x = `cancel) l
 
 let raise_cancelled ~__context =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   let task_id = Context.get_task_id __context in
   raise Api_errors.(Server_error (task_cancelled, [Ref.string_of task_id]))
 
 let exn_if_cancelling ~__context =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   if is_cancelling ~__context then
     raise_cancelled ~__context
 
@@ -269,7 +269,7 @@ let cancel_this ~__context ~self =
       (status_to_string status)
 
 let cancel ~__context =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   operate_on_db_task ~__context (fun self -> cancel_this ~__context ~self)
 
 let failed ~__context exn =
@@ -317,7 +317,7 @@ let task_to_id_exn task =
   with_lock task_tbl_m (fun () -> Hashtbl.find task_to_id_tbl task)
 
 let register_task __context ?(cancellable = true) id =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   let task = Context.get_task_id __context in
   with_lock task_tbl_m (fun () ->
       Hashtbl.replace id_to_task_tbl id task ;
@@ -333,7 +333,7 @@ let register_task __context ?(cancellable = true) id =
   ()
 
 let unregister_task __context id =
-  Context.with_tracing ~__context __FUNCTION__ @@ fun __context__ ->
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   (* The rest of the XenAPI Task won't be cancellable *)
   set_not_cancellable ~__context ;
   with_lock task_tbl_m (fun () ->
