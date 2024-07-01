@@ -887,13 +887,13 @@ let common_http_handlers () =
   ; ("get_host_updates", Http_svr.FdIO Xapi_host.get_host_updates_handler)
   ]
 
-let listen_unix_socket sock_path =
+let listen_unix_socket ?nice sock_path =
   (* Always listen on the Unix domain socket first *)
   Unixext.mkdir_safe (Filename.dirname sock_path) 0o700 ;
   Unixext.unlink_safe sock_path ;
   let domain_sock = Xapi_http.bind (Unix.ADDR_UNIX sock_path) in
   ignore
-    (Http_svr.start
+    (Http_svr.start ?_nice:nice
        ~conn_limit:!Xapi_globs.conn_limit_unix
        Xapi_http.server domain_sock
     )
@@ -1110,9 +1110,11 @@ let server_init () =
             , fun () ->
                 List.iter Xapi_http.add_handler master_only_http_handlers
             )
-          ; ( "Listening unix socket"
+          ; ( "Listening unix sockets"
             , []
-            , fun () -> listen_unix_socket Xapi_globs.unix_domain_socket
+            , fun () ->
+                let () = listen_unix_socket Xapi_globs.unix_domain_socket in
+                listen_unix_socket ~nice:(-20) Xapi_globs.unix_domain_socket_sm
             )
           ; ( "Metadata VDI liveness monitor"
             , [Startup.OnlyMaster; Startup.OnThread]
