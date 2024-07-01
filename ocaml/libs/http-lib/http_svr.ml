@@ -632,7 +632,7 @@ let socket_table = Hashtbl.create 10
 type socket = Unix.file_descr * string
 
 (* Start an HTTP server on a new socket *)
-let start ?header_read_timeout ?header_total_timeout ?max_header_length
+let start ?_nice ?header_read_timeout ?header_total_timeout ?max_header_length
     ~conn_limit (x : 'a Server.t) (socket, name) =
   let handler =
     {
