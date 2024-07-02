@@ -901,7 +901,7 @@ let listen_unix_socket ?nice sock_path =
   Unixext.unlink_safe sock_path ;
   let domain_sock = Xapi_http.bind (Unix.ADDR_UNIX sock_path) in
   ignore
-    (Http_svr.start ?_nice:nice
+    (Http_svr.start ?nice
        ~conn_limit:!Xapi_globs.conn_limit_unix
        Xapi_http.server domain_sock
     )
