@@ -387,10 +387,7 @@ let http_update_span_name req = function
       let name = String.concat " " [http_method; req.Request.uri] in
       let addr_port =
         req.Request.host
-        |> Option.fold ~none:[] ~some:(fun host ->
-               Scanf.sscanf host "%s:%d" @@ fun server port ->
-               [("server.address", server); ("server.port", string_of_int port)]
-           )
+        |> Option.fold ~none:[] ~some:(fun host -> [("server.address", host)])
       and user_agent =
         req.Request.user_agent
         |> Option.fold ~none:[] ~some:(fun ua -> [("user_agent.original", ua)])
