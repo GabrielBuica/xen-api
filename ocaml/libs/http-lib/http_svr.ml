@@ -663,10 +663,34 @@ let handle_connection ~header_read_timeout ~header_total_timeout
      along in the loop below. *)
   let rec loop ~read_timeout ~total_timeout span proxy_seen =
     (* 1. we must successfully parse a request *)
+    let tracer = Tracing.Tracer.get_tracer ~name:"http_tracer" in
+    let loop_span =
+      match
+        Tracing.Tracer.start ~tracer
+          ~name:(__FUNCTION__ ^ ".parse_loop")
+          ~parent:None ()
+      with
+      | Ok span ->
+          span
+      | Error _ ->
+          None
+    in
     let req, proxy =
       request_of_bio ?proxy_seen ~read_timeout ~total_timeout
         ~max_length:max_header_length span ic
     in
+    let parent_span = Option.bind req traceparent_of_request in
+    let loop_span =
+      match loop_span with
+      | Some span ->
+          Tracing.Tracer.update_span_with_parent span parent_span
+      | None ->
+          None
+    in
+    let _ : (Tracing.Span.t option, exn) result =
+      Tracing.Tracer.finish loop_span
+    in
+
     (* 2. now we attempt to process the request *)
     let finished =
       Option.fold ~none:true

@@ -57,6 +57,8 @@ end
 module SpanContext : sig
   type t
 
+  val context : string -> string -> t
+
   val to_traceparent : t -> string
 
   val of_traceparent : string -> t option
@@ -87,7 +89,7 @@ module Span : sig
 
   val get_name : t -> string
 
-  val set_name : t -> ?attributes:(string*string) list -> string -> t
+  val set_name : t -> ?attributes:(string * string) list -> string -> t
 
   val get_parent : t -> t option
 
@@ -126,6 +128,8 @@ module Tracer : sig
     -> parent:Span.t option
     -> unit
     -> (Span.t option, exn) result
+
+  val update_span_with_parent : Span.t -> Span.t option -> Span.t option
 
   val finish :
        ?leave_unset:bool
@@ -238,6 +242,7 @@ module EnvHelpers : sig
       If [span] is [None], it returns an empty list.
       *)
 end
+
 val with_child_trace :
      ?attributes:(string * string) list
   -> Span.t option
