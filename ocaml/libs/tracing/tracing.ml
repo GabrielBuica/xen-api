@@ -656,7 +656,8 @@ module Tracer = struct
           ; ("traceparent.new", SpanContext.to_traceparent new_context)
           ]
         in
-        let updated_span = {span with context= new_context} in
+        let updated_span = {span with parent= Some parent} in
+        let updated_span = {updated_span with context= new_context} in
         let updated_span =
           {
             updated_span with
