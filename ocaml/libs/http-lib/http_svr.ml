@@ -548,7 +548,17 @@ let request_of_bio ?proxy_seen ~read_timeout ~total_timeout ~max_length span ic
     ) ;
     (None, None)
 
+let traceparent_of_request req =
+  let open Tracing in
+  let ( let* ) = Option.bind in
+  let* traceparent = req.Http.Request.traceparent in
+  let* span_context = SpanContext.of_traceparent traceparent in
+  let span = Tracer.span_of_span_context span_context req.uri in
+  Some span
+
 let handle_one (x : 'a Server.t) ss context req =
+  let parent = traceparent_of_request req in
+  let@ span = Tracing.with_child_trace parent ~name:__FUNCTION__ in
   let ic = Buf_io.of_fd ss in
   let finished = ref false in
   try
@@ -564,6 +574,13 @@ let handle_one (x : 'a Server.t) ss context req =
     in
     let@ body_span = Tracing.with_child_trace req.http_span ~name:"handler" in
     req.body_span <- body_span ;
+    let traceparent =
+      let open Tracing in
+      Option.map
+        (fun span -> Span.get_context span |> SpanContext.to_traceparent)
+        span
+    in
+    let req = {req with traceparent= traceparent} in
     ( match te.TE.handler with
     | BufIO handlerfn ->
         handlerfn req ic context
