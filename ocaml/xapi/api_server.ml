@@ -352,6 +352,8 @@ let callback is_json req bio _ =
 
 (** HTML callback that dispatches an RPC and returns the response. *)
 let jsoncallback req bio _ =
+  let parent = Http_svr.traceparent_of_request req in
+  let@ _ = Tracing.with_child_trace parent ~name:__FUNCTION__ in
   let fd = Buf_io.fd_of bio in
   (* fd only used for writing *)
   let body =
