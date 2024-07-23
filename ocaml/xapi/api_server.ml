@@ -16,6 +16,8 @@
     @group API Messaging
 *)
 
+let ( let@ ) f x = f x
+
 (** Actions module *)
 module Actions = struct
   (** The DebugVersion throws a NotImplemented exception for everything
@@ -144,6 +146,8 @@ end)
 
 (** Forward a call to the master *)
 let forward req call is_json =
+  let parent = Http_svr.traceparent_of_request req in
+  let@ span = Tracing.with_child_trace parent ~name:__FUNCTION__ in
   let open Xmlrpc_client in
   let transport =
     SSL
@@ -194,6 +198,8 @@ let json_of_error_object ?(data = None) code message =
 
 (* This bit is called directly by the fake_rpc callback *)
 let callback1 ?(json_rpc_version = Jsonrpc.V1) is_json req fd call =
+  let parent = Http_svr.traceparent_of_request req in
+  let@ span = Tracing.with_child_trace parent ~name:__FUNCTION__ in
   (* We now have the body string, the xml and the call name, and can also tell *)
   (* if we're a master or slave and whether the call came in on the unix domain socket or the tcp socket *)
   (* If we're a slave, and the call is from the unix domain socket or from the HIMN, and the call *isn't* *)
@@ -211,7 +217,13 @@ let callback1 ?(json_rpc_version = Jsonrpc.V1) is_json req fd call =
   then
     forward req call is_json
   else
-    let response = Server.dispatch_call req fd call in
+    let response =
+      let parent = Http_svr.traceparent_of_request req in
+      let@ span =
+        Tracing.with_child_trace parent ~name:"Server.dispatch_call"
+      in
+      Server.dispatch_call req fd call
+    in
     let translated =
       if
         is_json
@@ -277,8 +289,6 @@ let create_thumbprint_header req response =
 module Unixext = Xapi_stdext_unix.Unixext
 
 exception Rpc_failure of string
-
-let ( let@ ) f x = f x
 
 (** HTML callback that dispatches an RPC and returns the response. *)
 let callback is_json req bio _ =
