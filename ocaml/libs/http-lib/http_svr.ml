@@ -525,7 +525,7 @@ let request_of_bio ?proxy_seen ~read_timeout ~total_timeout ~max_length span ic
         span ic
     in
     let parent_span = traceparent_of_request r in
-    let loop_span =
+    let updated_span =
       match loop_span with
       | Some span ->
           Tracing.Tracer.update_span_with_parent span parent_span
@@ -533,7 +533,7 @@ let request_of_bio ?proxy_seen ~read_timeout ~total_timeout ~max_length span ic
           None
     in
     let _ : (Tracing.Span.t option, exn) result =
-      Tracing.Tracer.finish loop_span
+      Tracing.Tracer.finish updated_span
     in
     (Some r, proxy)
   with e ->

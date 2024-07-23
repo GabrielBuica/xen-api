@@ -648,7 +648,21 @@ module Tracer = struct
             (SpanContext.trace_id_of_span_context parent.context)
             old_context.span_id
         in
+        let span_attributes = Span.get_attributes span in
+        let new_attributes =
+          [
+            ("traceparent.old", SpanContext.to_traceparent old_context)
+          ; ("traceparent.parent", SpanContext.to_traceparent parent.context)
+          ; ("traceparent.new", SpanContext.to_traceparent new_context)
+          ]
+        in
         let updated_span = {span with context= new_context} in
+        let updated_span =
+          {
+            updated_span with
+            attributes= Attributes.of_list (span_attributes @ new_attributes)
+          }
+        in
         let () = Spans.add_to_spans ~span:updated_span in
         Some updated_span
 
