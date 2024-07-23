@@ -57,6 +57,8 @@ end
 module SpanContext : sig
   type t
 
+  val context : string -> string -> t
+
   val to_traceparent : t -> string
 
   val of_traceparent : string -> t option
@@ -124,6 +126,8 @@ module Tracer : sig
     -> parent:Span.t option
     -> unit
     -> (Span.t option, exn) result
+
+  val update_span_with_parent : Span.t -> Span.t option -> Span.t option
 
   val finish :
     ?error:exn * string -> Span.t option -> (Span.t option, exn) result
