@@ -44,7 +44,7 @@ let handler_by_thread ?nice (h : handler) (s : Unix.file_descr)
                    in
                    ()
                  in
-                 set_timeslice 0.04 ;
+                 set_timeslice 0.004 ;
                  let n = Unix.nice nice in
                  debug "New nice level for thread %s is %d" h.name n
                )
@@ -126,7 +126,7 @@ let server ?nice handler sock =
                     in
                     ()
                   in
-                  set_timeslice 0.04 ;
+                  set_timeslice 0.004 ;
                   let n = Unix.nice nice in
                   debug "New nice level for thread %s is %d" handler.name n
                 )
