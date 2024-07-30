@@ -117,8 +117,12 @@ let dispatch_exn_wrapper f =
     let code, params = ExnHelper.error_of_exn exn in
     API.response_of_failure code params
 
+let ( let@ ) f x = f x
+
 let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
     op_fn marshaller fd http_req label sync_ty generate_task_for =
+  let parent = Http_svr.traceparent_of_request http_req in
+  let@ span = Tracing.with_child_trace ~name:__FUNCTION__ parent in
   (* if the call has been forwarded to us, then they are responsible for completing the task, so we don't need to complete it *)
   let called_async = sync_ty <> `Sync in
   if called_async && not supports_async then
@@ -131,6 +135,7 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
         ~supports_async ~label ~http_req ~fd ()
     in
     let sync () =
+      let@ _ = Tracing.with_child_trace ~name:__FUNCTION__ span in
       let need_complete = not (Context.forwarded_task __context) in
       exec_with_context ~__context ~need_complete ~called_async
         ?f_forward:forward_op ~marshaller op_fn
@@ -142,6 +147,7 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
       ignore
         (Thread.create
            (fun () ->
+             let@ _ = Tracing.with_child_trace ~name:__FUNCTION__ span in
              exec_with_context ~__context ~need_complete ~called_async
                ?f_forward:forward_op ~marshaller op_fn
            )
