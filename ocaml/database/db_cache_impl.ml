@@ -96,7 +96,9 @@ let write_field ?span t tblname objref fldname newval =
   let schema = Schema.table tblname (Database.schema db) in
   let column = Schema.Table.find fldname schema in
   let newval = Schema.Value.unmarshal column.Schema.Column.ty newval in
-  with_lock (fun () -> write_field_locked ?span t tblname objref fldname newval)
+  with_lock ?span (fun () ->
+      write_field_locked ?span t tblname objref fldname newval
+  )
 
 let touch_row t tblname objref =
   update_database t (touch tblname objref) ;

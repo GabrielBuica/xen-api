@@ -21,6 +21,8 @@ let dbcache_mutex = Mutex.create ()
 
 let time = ref 0.0
 
+let tid = ref 0
+
 let n = ref 0
 
 let maxtime = ref neg_infinity
@@ -31,11 +33,22 @@ let thread_reenter_count = ref 0
 
 let allow_thread_through_dbcache_mutex = ref None
 
-let with_lock f =
+let ( let@ ) f x = f x
+
+let with_lock ?span f =
   let me = Thread.id (Thread.self ()) in
+  let@ span =
+    Tracing.with_child_trace span ~name:"with_lock"
+      ~attributes:
+        [
+          ("xs.db.lock.tid", string_of_int !tid)
+        ; ("xs.db.current.tid", string_of_int me)
+        ]
+  in
   let do_with_lock () =
     let now = Unix.gettimeofday () in
     Mutex.lock dbcache_mutex ;
+    let () = tid := me in
     let now2 = Unix.gettimeofday () in
     let delta = now2 -. now in
     time := !time +. delta ;
@@ -48,6 +61,7 @@ let with_lock f =
         thread_reenter_count := !thread_reenter_count - 1 ;
         if !thread_reenter_count = 0 then (
           allow_thread_through_dbcache_mutex := None ;
+          tid := 0 ;
           Mutex.unlock dbcache_mutex
         )
     )
