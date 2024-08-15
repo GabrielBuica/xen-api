@@ -23,6 +23,8 @@ let time = ref 0.0
 
 let tid = ref 0
 
+let span_contexts : Tracing.SpanContext.t list ref = ref []
+
 let n = ref 0
 
 let maxtime = ref neg_infinity
@@ -38,17 +40,30 @@ let ( let@ ) f x = f x
 let with_lock ?span f =
   let me = Thread.id (Thread.self ()) in
   let@ span =
-    Tracing.with_child_trace span ~name:"with_lock"
+    Tracing.with_child_trace span ~span_links:!span_contexts ~name:"with_lock"
       ~attributes:
         [
           ("xs.db.lock.tid", string_of_int !tid)
         ; ("xs.db.current.tid", string_of_int me)
+        ; ( "span.link"
+          , match !span_contexts with
+            | [] ->
+                ""
+            | link :: _ ->
+                Tracing.SpanContext.to_traceparent link
+          )
         ]
   in
   let do_with_lock () =
     let now = Unix.gettimeofday () in
     Mutex.lock dbcache_mutex ;
     let () = tid := me in
+    let () =
+      span_contexts :=
+        Option.fold ~none:[]
+          ~some:(fun span -> [Tracing.Span.get_context span])
+          span
+    in
     let now2 = Unix.gettimeofday () in
     let delta = now2 -. now in
     time := !time +. delta ;
@@ -62,6 +77,7 @@ let with_lock ?span f =
         if !thread_reenter_count = 0 then (
           allow_thread_through_dbcache_mutex := None ;
           tid := 0 ;
+          span_contexts := [] ;
           Mutex.unlock dbcache_mutex
         )
     )
