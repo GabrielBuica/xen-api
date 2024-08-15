@@ -75,7 +75,7 @@ module Span : sig
 
   val get_context : t -> SpanContext.t
 
-  val add_link : t -> SpanContext.t -> (string * string) list -> t
+  val add_link : ?attributes:string Attributes.t -> t -> SpanContext.t -> t
 
   val add_event : t -> string -> (string * string) list -> t
 
@@ -121,6 +121,7 @@ module Tracer : sig
   val start :
        tracer:t
     -> ?attributes:(string * string) list
+    -> ?span_links:SpanContext.t list
     -> ?span_kind:SpanKind.t
     -> name:string
     -> parent:Span.t option
@@ -205,14 +206,16 @@ end
 val enable_span_garbage_collector : ?timeout:float -> unit -> unit
 
 val with_tracing :
-     ?attributes:(string * string) list
+     ?span_links:SpanContext.t list
+  -> ?attributes:(string * string) list
   -> ?parent:Span.t option
   -> name:string
   -> (Span.t option -> 'a)
   -> 'a
 
 val with_child_trace :
-     ?attributes:(string * string) list
+     ?span_links:SpanContext.t list
+  -> ?attributes:(string * string) list
   -> Span.t option
   -> name:string
   -> (Span.t option -> 'a)

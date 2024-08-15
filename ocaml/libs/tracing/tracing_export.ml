@@ -263,7 +263,7 @@ module Destination = struct
               )
             ]
           in
-          let@ _ = with_tracing ~parent ~attributes ~name in
+          let@ _ = with_tracing ~span_links:[] ~parent ~attributes ~name in
           all_spans
           |> Content.Json.ZipkinV2.content_of
           |> export
@@ -278,7 +278,8 @@ module Destination = struct
       [("export.traces.count", Hashtbl.length span_list |> string_of_int)]
     in
     let@ parent =
-      with_tracing ~parent:None ~attributes ~name:"Tracing.flush_spans"
+      with_tracing ~span_links:[] ~parent:None ~attributes
+        ~name:"Tracing.flush_spans"
     in
     TracerProvider.get_tracer_providers ()
     |> List.filter TracerProvider.get_enabled

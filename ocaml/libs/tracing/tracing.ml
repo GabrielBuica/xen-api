@@ -169,7 +169,7 @@ module SpanContext = struct
 end
 
 module SpanLink = struct
-  type t = {_context: SpanContext.t; _attributes: (string * string) list}
+  type t = {_context: SpanContext.t; _attributes: string Attributes.t}
 end
 
 module Span = struct
@@ -251,7 +251,8 @@ module Span = struct
 
   let set_span_kind span span_kind = {span with span_kind}
 
-  let add_link span context attributes =
+  let add_link ?(attributes : string Attributes.t = Attributes.empty) span
+      context =
     let link : SpanLink.t = {_context= context; _attributes= attributes} in
     {span with links= link :: span.links}
 
@@ -611,8 +612,9 @@ module Tracer = struct
     ; attributes= Attributes.empty
     }
 
-  let start ~tracer:t ?(attributes = []) ?(span_kind = SpanKind.Internal) ~name
-      ~parent () : (Span.t option, exn) result =
+  let start ~tracer:t ?(attributes = []) ?(span_links = [])
+      ?(span_kind = SpanKind.Internal) ~name ~parent () :
+      (Span.t option, exn) result =
     (* Do not start span if the TracerProvider is diabled*)
     if not t.provider.enabled then
       ok_none
@@ -624,6 +626,9 @@ module Tracer = struct
           attributes t.provider.attributes
       in
       let span = Span.start ~attributes ~name ~parent ~span_kind () in
+      let span =
+        List.fold_left (Span.add_link ?attributes:None) span span_links
+      in
       Spans.add_to_spans ~span ; Ok (Some span)
 
   let update_span_with_parent span (parent : Span.t option) =
@@ -678,10 +683,10 @@ end
 let enable_span_garbage_collector ?(timeout = 86400.) () =
   Spans.GC.initialise_thread ~timeout
 
-let with_tracing ?(attributes = []) ?(parent = None) ~name f =
+let with_tracing ?span_links ?(attributes = []) ?(parent = None) ~name f =
   if Atomic.get observe then (
     let tracer = Tracer.get_tracer ~name in
-    match Tracer.start ~tracer ~attributes ~name ~parent () with
+    match Tracer.start ?span_links ~tracer ~attributes ~name ~parent () with
     | Ok span -> (
       try
         let result = f span in
@@ -699,7 +704,7 @@ let with_tracing ?(attributes = []) ?(parent = None) ~name f =
   ) else
     f None
 
-let with_child_trace ?attributes parent ~name f =
+let with_child_trace ?span_links ?attributes parent ~name f =
   match parent with
   | None ->
       f None
