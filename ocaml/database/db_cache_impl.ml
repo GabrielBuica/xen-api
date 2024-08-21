@@ -73,7 +73,6 @@ let ensure_utf8_xml string =
 
 (* Write field in cache *)
 let write_field_locked ?span t tblname objref fldname newval =
-  let@ span = Tracing.with_child_trace span ~name:__FUNCTION__ in
   let current_val = get_field tblname objref fldname (get_database t) in
   if current_val <> newval then (
     ( match newval with
@@ -91,12 +90,17 @@ let write_field_locked ?span t tblname objref fldname newval =
   )
 
 let write_field ?span t tblname objref fldname newval =
-  let@ span = Tracing.with_child_trace span ~name:__FUNCTION__ in
   let db = get_database t in
   let schema = Schema.table tblname (Database.schema db) in
   let column = Schema.Table.find fldname schema in
   let newval = Schema.Value.unmarshal column.Schema.Column.ty newval in
   with_lock ?span (fun () ->
+      let@ span =
+        Tracing.with_child_trace
+          ~attributes:[("db.tblname", tblname); ("db.fldname", fldname)]
+          span
+          ~name:("write_field_locked" ^ "_" ^ tblname ^ "_" ^ fldname)
+      in
       write_field_locked ?span t tblname objref fldname newval
   )
 
