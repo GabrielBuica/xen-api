@@ -113,6 +113,8 @@ let preauth ~__context =
     match Unix.getsockname s with
     | Unix.ADDR_UNIX path when path = Xapi_globs.unix_domain_socket ->
         Some `root
+    | Unix.ADDR_UNIX path when path = Xapi_globs.unix_domain_socket_sm ->
+        Some `root
     | Unix.ADDR_UNIX path when path = Xapi_globs.unix_domain_socket_clientcert
       ->
         Some `client_cert
