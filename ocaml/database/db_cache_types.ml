@@ -14,6 +14,8 @@
 
 open Db_exn
 
+let ( let@ ) f x = f x
+
 module Time = struct type t = Generation.t end
 
 module HashedString = struct
@@ -366,10 +368,22 @@ module Database = struct
   let unregister_callback name x =
     {x with callbacks= List.filter (fun (x, _) -> x <> name) x.callbacks}
 
-  let notify e db =
+  let notify ?span e db =
+    let@ span =
+      Tracing.with_child_trace
+        ~attributes:
+          [("db.callbacks", db.callbacks |> List.map fst |> String.concat ",")]
+        span ~name:__FUNCTION__
+    in
     List.iter
       (fun (name, f) ->
-        try f e db
+        try
+          let@ _ =
+            Tracing.with_child_trace
+              ~attributes:[("database.callback", name)]
+              span ~name
+          in
+          f e db
         with e ->
           Printf.printf "Caught %s from database callback '%s'\n%!"
             (Printexc.to_string e) name ;
@@ -505,7 +519,8 @@ let remove_from_map key t =
 let is_valid tblname objref db =
   Table.mem objref (TableSet.find tblname (Database.tableset db))
 
-let get_field tblname objref fldname db =
+let get_field ?span tblname objref fldname db =
+  let@ _ = Tracing.with_child_trace span ~name:__FUNCTION__ in
   try
     Row.find fldname
       (Table.find objref (TableSet.find tblname (Database.tableset db)))

@@ -73,7 +73,7 @@ let ensure_utf8_xml string =
 
 (* Write field in cache *)
 let write_field_locked ?span t tblname objref fldname newval =
-  let current_val = get_field tblname objref fldname (get_database t) in
+  let current_val = get_field ?span tblname objref fldname (get_database t) in
   if current_val <> newval then (
     ( match newval with
     | Schema.Value.String s ->
@@ -83,8 +83,7 @@ let write_field_locked ?span t tblname objref fldname newval =
         ()
     ) ;
     update_database ?span t (set_field tblname objref fldname newval) ;
-    let@ _ = Tracing.with_child_trace span ~name:"Database.notify" in
-    Database.notify
+    Database.notify ?span
       (WriteField (tblname, objref, fldname, current_val, newval))
       (get_database t)
   )

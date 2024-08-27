@@ -171,7 +171,7 @@ module Database : sig
 
   val unregister_callback : string -> t -> t
 
-  val notify : update -> t -> unit
+  val notify : ?span:Tracing.Span.t -> update -> t -> unit
 end
 
 exception Duplicate
@@ -188,7 +188,13 @@ val remove_from_map : string -> Schema.Value.t -> Schema.Value.t
 val set_field :
   string -> string -> string -> Schema.Value.t -> Database.t -> Database.t
 
-val get_field : string -> string -> string -> Database.t -> Schema.Value.t
+val get_field :
+     ?span:Tracing.Span.t
+  -> string
+  -> string
+  -> string
+  -> Database.t
+  -> Schema.Value.t
 
 val remove_row : string -> string -> Database.t -> Database.t
 
