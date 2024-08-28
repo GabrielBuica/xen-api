@@ -15,6 +15,8 @@ module D = Debug.Make (struct let name = "sql" end)
 
 open D
 
+let ( let@ ) f x = f x
+
 type getrecord = unit -> Rpc.t
 
 let get_record_table :
@@ -35,30 +37,26 @@ let compute_object_references_to_follow (obj_name : string) =
   let objs = Dm_api.objects_of_api api in
   let obj = List.find (fun obj -> obj.Datamodel_types.name = obj_name) objs in
   let relations = Dm_api.relations_of_api api in
-  let symmetric =
-    List.concat (List.map (fun (a, b) -> [(a, b); (b, a)]) relations)
-  in
+  let symmetric = List.concat_map (fun (a, b) -> [(a, b); (b, a)]) relations in
   let set = Xapi_stdext_std.Listext.List.setify symmetric in
-  List.concat
-    (List.map
-       (function
-         | {
-             Datamodel_types.ty= Datamodel_types.Ref _
-           ; Datamodel_types.field_name
-           ; _
-           } ->
-             let this_end = (obj.Datamodel_types.name, field_name) in
-             if List.mem_assoc this_end set then
-               let other_end = List.assoc this_end set in
-               let other_obj = fst other_end in
-               [(other_obj, field_name)]
-             else
-               []
-         | _ ->
-             []
-         )
-       (Datamodel_utils.fields_of_obj obj)
-    )
+  List.concat_map
+    (function
+      | {
+          Datamodel_types.ty= Datamodel_types.Ref _
+        ; Datamodel_types.field_name
+        ; _
+        } ->
+          let this_end = (obj.Datamodel_types.name, field_name) in
+          if List.mem_assoc this_end set then
+            let other_end = List.assoc this_end set in
+            let other_obj = fst other_end in
+            [(other_obj, field_name)]
+          else
+            []
+      | _ ->
+          []
+      )
+    (Datamodel_utils.fields_of_obj obj)
 
 let obj_references_table : (string, (string * string) list) Hashtbl.t =
   Hashtbl.create 30
@@ -79,27 +77,34 @@ let follow_references (obj_name : string) =
 (** Compute a set of modify events but skip any for objects which were missing
     (must have been dangling references) *)
 let events_of_other_tbl_refs other_tbl_refs =
-  List.concat
-    (List.map
-       (fun (tbl, fld, x) ->
-         try [(tbl, fld, x ())]
-         with _ ->
-           (* Probably means the reference was dangling *)
-           warn "skipping event for dangling reference %s: %s" tbl fld ;
-           []
-       )
-       other_tbl_refs
+  List.concat_map
+    (fun (tbl, fld, x) ->
+      try [(tbl, fld, x ())]
+      with _ ->
+        (* Probably means the reference was dangling *)
+        warn "skipping event for dangling reference %s: %s" tbl fld ;
+        []
     )
+    other_tbl_refs
 
 open Xapi_database.Db_cache_types
 open Xapi_database.Db_action_helper
 
 let database_callback_inner event db context =
-  let other_tbl_refs tblname = follow_references tblname in
-  let other_tbl_refs_for_this_field tblname fldname =
-    List.filter (fun (_, fld) -> fld = fldname) (other_tbl_refs tblname)
+  let other_tbl_refs span tblname =
+    let@ _ = Tracing.with_child_trace ~name:"other_tbl_refs" span in
+    follow_references tblname
   in
-  let is_valid_ref = function
+  let other_tbl_refs_for_this_field span tblname fldname =
+    let@ span =
+      Tracing.with_child_trace ~name:"other_tbl_refs_for_this_field"
+        (Context.tracing_of context)
+    in
+    List.filter (fun (_, fld) -> fld = fldname) (other_tbl_refs span tblname)
+  in
+  let is_valid_ref ?span ref =
+    let@ _ = Tracing.with_child_trace ~name:"is_valid_ref" span in
+    match ref with
     | Schema.Value.String r -> (
       try
         ignore (Database.table_of_ref r db) ;
@@ -123,7 +128,11 @@ let database_callback_inner event db context =
     )
   | WriteField (tblname, objref, fldname, oldval, newval) ->
       let events_old_val =
-        if is_valid_ref oldval then
+        let@ span =
+          Tracing.with_child_trace ~name:"events_old_val"
+            (Context.tracing_of context)
+        in
+        if is_valid_ref ?span oldval then
           let oldval = Schema.Value.Unsafe_cast.string oldval in
           events_of_other_tbl_refs
             (List.map
@@ -133,13 +142,17 @@ let database_callback_inner event db context =
                  , find_get_record tbl ~__context:context ~self:oldval
                  )
                )
-               (other_tbl_refs_for_this_field tblname fldname)
+               (other_tbl_refs_for_this_field span tblname fldname)
             )
         else
           []
       in
       let events_new_val =
-        if is_valid_ref newval then
+        let@ span =
+          Tracing.with_child_trace ~name:"events_new_val"
+            (Context.tracing_of context)
+        in
+        if is_valid_ref ?span newval then
           let newval = Schema.Value.Unsafe_cast.string newval in
           events_of_other_tbl_refs
             (List.map
@@ -149,14 +162,23 @@ let database_callback_inner event db context =
                  , find_get_record tbl ~__context:context ~self:newval
                  )
                )
-               (other_tbl_refs_for_this_field tblname fldname)
+               (other_tbl_refs_for_this_field span tblname fldname)
             )
         else
           []
       in
       (* Generate event *)
-      let snapshot = find_get_record tblname ~__context:context ~self:objref in
+      let snapshot =
+        let@ _ =
+          Tracing.with_child_trace ~name:"snapshot" (Context.tracing_of context)
+        in
+        find_get_record tblname ~__context:context ~self:objref
+      in
       let record = snapshot () in
+      let@ _ =
+        Tracing.with_child_trace ~name:"event_notifies"
+          (Context.tracing_of context)
+      in
       List.iter
         (function
           | tbl, ref, None ->
