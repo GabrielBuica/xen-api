@@ -444,28 +444,28 @@ let request_of_bio_exn ~proxy_seen ~read_timeout ~total_timeout ~max_length bio
     	already sent back a suitable error code and response to the client. *)
 let request_of_bio ?proxy_seen ~read_timeout ~total_timeout ~max_length ic =
   try
-    let tracer = Tracing.Tracer.get_tracer ~name:"http_tracer" in
-    let loop_span =
-      match Tracing.Tracer.start ~tracer ~name:__FUNCTION__ ~parent:None () with
-      | Ok span ->
-          span
-      | Error _ ->
-          None
-    in
+    (* let tracer = Tracing.Tracer.get_tracer ~name:"http_tracer" in
+       let loop_span =
+         match Tracing.Tracer.start ~tracer ~name:__FUNCTION__ ~parent:None () with
+         | Ok span ->
+             span
+         | Error _ ->
+             None
+       in *)
     let r, proxy =
       request_of_bio_exn ~proxy_seen ~read_timeout ~total_timeout ~max_length ic
     in
-    let parent_span = Http.Request.traceparent_of r in
-    let loop_span =
-      Option.fold ~none:None
-        ~some:(fun span ->
-          Tracing.Tracer.update_span_with_parent span parent_span
-        )
-        loop_span
-    in
-    let _ : (Tracing.Span.t option, exn) result =
-      Tracing.Tracer.finish loop_span
-    in
+    (* let parent_span = Http.Request.traceparent_of r in
+       let loop_span =
+         Option.fold ~none:None
+           ~some:(fun span ->
+             Tracing.Tracer.update_span_with_parent span parent_span
+           )
+           loop_span
+       in
+       let _ : (Tracing.Span.t option, exn) result =
+         Tracing.Tracer.finish loop_span
+       in *)
     (Some r, proxy)
   with e ->
     D.warn "%s (%s)" (Printexc.to_string e) __LOC__ ;
