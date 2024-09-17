@@ -132,6 +132,8 @@ module Hdr = struct
 
   let location = "location"
 
+  let originator = "originator"
+
   let traceparent = "traceparent"
 
   let hsts = "strict-transport-security"
@@ -529,6 +531,7 @@ module Request = struct
     ; mutable close: bool
     ; additional_headers: (string * string) list
     ; body: string option
+    ; originator: string option
     ; traceparent: string option
   }
   [@@deriving rpc]
@@ -553,6 +556,7 @@ module Request = struct
     ; close= true
     ; additional_headers= []
     ; body= None
+    ; originator= None
     ; traceparent= None
     }
 

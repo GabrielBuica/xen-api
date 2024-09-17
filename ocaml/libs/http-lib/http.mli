@@ -86,6 +86,7 @@ module Request : sig
     ; mutable close: bool
     ; additional_headers: (string * string) list
     ; body: string option
+    ; originator: string option
     ; traceparent: string option
   }
 
@@ -228,6 +229,8 @@ module Hdr : sig
   val accept : string
 
   val location : string
+
+  val originator : string
 
   val traceparent : string
 

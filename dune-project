@@ -35,6 +35,11 @@
 )
 
 (package
+  (name cgroups)
+  (depends xapi-stdext-unix)
+)
+
+(package
   (name xapi-rrdd-plugin)
 )
 
