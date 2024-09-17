@@ -131,3 +131,14 @@ let wait_timed_write fd timeout =
       true
   | _ ->
       assert false
+
+(* let create ?name ?priority f () =
+   let me = Threadext.self () in
+   let state = me.state in
+   Thread.create
+     (fun () ->
+       Threadext.set_state ?priority state ;
+       debug "new thread ppid: %s, pid: %s, pcgroup: %s , cgroup:%s, pname: %s" state.tid ;
+       Tgroup.of_priority priority
+     )
+     () *)

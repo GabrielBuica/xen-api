@@ -251,7 +251,10 @@ class Session(xmlrpclib.ServerProxy):
         else:
             return xmlrpclib.ServerProxy.__getattr__(self, name)
 
-def xapi_local():
+def xapi_local(originator=None):
+    transport = UDSTransport()
+    if originator:
+        transport.add_extra_header("originator", originator)
     return Session("http://_var_lib_xcp_xapi/", transport=UDSTransport())
 
 def _parse_result(result):

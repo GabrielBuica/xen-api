@@ -132,6 +132,8 @@ module Hdr = struct
 
   let location = "location"
 
+  let originator = "originator"
+
   let traceparent = "traceparent"
 
   let hsts = "strict-transport-security"
@@ -522,6 +524,7 @@ module Request = struct
     ; mutable close: bool
     ; additional_headers: (string * string) list
     ; body: string option
+    ; originator: string option
     ; traceparent: string option
   }
   [@@deriving rpc]
@@ -546,12 +549,13 @@ module Request = struct
     ; close= true
     ; additional_headers= []
     ; body= None
+    ; originator= None
     ; traceparent= None
     }
 
   let make ?(frame = false) ?(version = "1.1") ?(keep_alive = true) ?accept
       ?cookie ?length ?auth ?subtask_of ?body ?(headers = []) ?content_type
-      ?host ?(query = []) ?traceparent ~user_agent meth path =
+      ?host ?(query = []) ?originator ?traceparent ~user_agent meth path =
     {
       empty with
       version
@@ -570,6 +574,7 @@ module Request = struct
     ; body
     ; accept
     ; query
+    ; originator
     ; traceparent
     }
 
@@ -583,7 +588,7 @@ module Request = struct
       "{ frame = %b; method = %s; uri = %s; query = [ %s ]; content_length = [ \
        %s ]; transfer encoding = %s; version = %s; cookie = [ %s ]; task = %s; \
        subtask_of = %s; content-type = %s; host = %s; user_agent = %s; \
-       traceparent = %s }"
+       originator = %s; traceparent = %s }"
       x.frame (string_of_method_t x.m) x.uri (kvpairs x.query)
       (Option.fold ~none:"" ~some:Int64.to_string x.content_length)
       (Option.value ~default:"" x.transfer_encoding)
@@ -593,6 +598,7 @@ module Request = struct
       (Option.value ~default:"" x.content_type)
       (Option.value ~default:"" x.host)
       (Option.value ~default:"" x.user_agent)
+      (Option.value ~default:"" x.originator)
       (Option.value ~default:"" x.traceparent)
 
   let to_header_list x =
@@ -643,6 +649,11 @@ module Request = struct
         ~some:(fun x -> [Hdr.user_agent ^ ": " ^ x])
         x.user_agent
     in
+    let originator =
+      Option.fold ~none:[]
+        ~some:(fun x -> [Hdr.originator ^ ": " ^ x])
+        x.originator
+    in
     let traceparent =
       Option.fold ~none:[]
         ~some:(fun x -> [Hdr.traceparent ^ ": " ^ x])
@@ -665,6 +676,7 @@ module Request = struct
     @ content_type
     @ host
     @ user_agent
+    @ originator
     @ traceparent
     @ close
     @ List.map (fun (k, v) -> k ^ ": " ^ v) x.additional_headers
@@ -710,6 +722,8 @@ module Request = struct
         | None ->
             f req
     )
+
+  let with_originator_of req f = Option.iter (fun req -> f req.originator) req
 end
 
 module Response = struct

@@ -1099,6 +1099,10 @@ let server_init () =
             , fun () ->
                 List.iter Xapi_http.add_handler master_only_http_handlers
             )
+          ; ( "Initialize Tgroup"
+            , [Startup.OnlyMaster]
+            , fun () -> Tgroup.Cgroup.init ()
+            )
           ; ( "Listening unix socket"
             , []
             , fun () -> listen_unix_socket Xapi_globs.unix_domain_socket

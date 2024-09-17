@@ -1,107 +1,110 @@
 (library
-  (name http_lib)
-  (public_name http-lib)
-  (modes best)
-  (wrapped false)
-  (modules (:standard \ http_svr http_proxy server_io http_test radix_tree_test test_client test_server bufio_test bufio_test_run))
-  (preprocess (per_module ((pps ppx_deriving_rpc) Http)))
-  (libraries
-    astring
-    base64
-    fmt
-    ipaddr
-    mtime
-    mtime.clock.os
-    rpclib.core
-    rpclib.json
-    rpclib.xml
-    safe_resources
-    sha
-    stunnel
-    threads.posix
-    uuid
-    uri
-    xapi-backtrace
-    xapi-consts.xapi_version
-    xapi-idl.updates
-    xapi-log
-    xapi-stdext-date
-    xapi-stdext-pervasives
-    xapi-stdext-threads
-    xapi-stdext-unix
-    xml-light2
-    tracing
-  )
-)
+ (name http_lib)
+ (public_name http-lib)
+ (modes best)
+ (wrapped false)
+ (modules
+  (:standard
+   \
+   http_svr
+   http_proxy
+   server_io
+   http_test
+   radix_tree_test
+   test_client
+   test_server
+   bufio_test
+   bufio_test_run))
+ (preprocess
+  (per_module
+   ((pps ppx_deriving_rpc)
+    Http)))
+ (libraries
+  astring
+  base64
+  tgroup
+  fmt
+  ipaddr
+  mtime
+  mtime.clock.os
+  rpclib.core
+  rpclib.json
+  rpclib.xml
+  safe_resources
+  sha
+  stunnel
+  threads.posix
+  uuid
+  uri
+  xapi-backtrace
+  xapi-consts.xapi_version
+  xapi-idl.updates
+  xapi-log
+  xapi-stdext-date
+  xapi-stdext-pervasives
+  xapi-stdext-threads
+  xapi-stdext-unix
+  xml-light2
+  tracing))
 
 (library
-  (name httpsvr)
-  (wrapped false)
-  (modes best)
-  (modules http_svr http_proxy server_io)
-  (libraries
-    astring
-    http_lib
-    ipaddr
-    polly
-    threads.posix
-    tracing
-    uri
-    xapi-log
-    xapi-stdext-pervasives
-    xapi-stdext-threads
-    xapi-stdext-unix
-  )
-)
+ (name httpsvr)
+ (wrapped false)
+ (modes best)
+ (modules http_svr http_proxy server_io)
+ (libraries
+  astring
+  tgroup
+  http_lib
+  ipaddr
+  polly
+  threads.posix
+  tracing
+  uri
+  xapi-log
+  xapi-stdext-pervasives
+  xapi-stdext-threads
+  xapi-stdext-unix))
 
 (tests
-  (names http_test radix_tree_test)
-  (package http-lib)
-  (modes (best exe))
-  (modules http_test radix_tree_test)
-  (libraries
-    alcotest
-
-    fmt
-    http_lib
-  )
-)
+ (names http_test radix_tree_test)
+ (package http-lib)
+ (modes
+  (best exe))
+ (modules http_test radix_tree_test)
+ (libraries alcotest fmt http_lib))
 
 (test
-  (name bufio_test_run)
-  (package http-lib)
-  (modes (best exe))
-  (modules bufio_test_run)
-  (libraries
-    qcheck-core.runner
-    bufio_test
-  )
-  ; use fixed seed to avoid causing random failures in CI and package builds
-  (action (run %{test} -v -bt --seed 42))
-)
+ (name bufio_test_run)
+ (package http-lib)
+ (modes
+  (best exe))
+ (modules bufio_test_run)
+ (libraries qcheck-core.runner bufio_test)
+ ; use fixed seed to avoid causing random failures in CI and package builds
+ (action
+  (run %{test} -v -bt --seed 42)))
 
 (library
-  (name bufio_test)
-  (modes best)
-  (modules bufio_test)
-  (libraries
-    fmt
-    mtime
-    mtime.clock
-    mtime.clock.os
-    rresult
-    http_lib
-    qcheck-core
-    xapi_fd_test
-  )
-)
+ (name bufio_test)
+ (modes best)
+ (modules bufio_test)
+ (libraries
+  fmt
+  mtime
+  mtime.clock
+  mtime.clock.os
+  rresult
+  http_lib
+  qcheck-core
+  xapi_fd_test))
 
 (rule
-  (alias stresstest)
-  (deps bufio_test_run.exe)
-  ; use default random seed on stresstests
-  (action (run %{deps} -v -bt))
-)
+ (alias stresstest)
+ (deps bufio_test_run.exe)
+ ; use default random seed on stresstests
+ (action
+  (run %{deps} -v -bt)))
 
 (executable
   (modes exe)
@@ -121,19 +124,16 @@
 )
 
 (executable
-  (modes exe)
-  (name test_server)
-  (modules test_server)
-  (libraries
-
-    http_lib
-    httpsvr
-    safe-resources
-    threads.posix
-    xapi-stdext-threads
-    xapi-stdext-unix
-  )
-)
+ (modes exe)
+ (name test_server)
+ (modules test_server)
+ (libraries
+  http_lib
+  httpsvr
+  safe-resources
+  threads.posix
+  xapi-stdext-threads
+  xapi-stdext-unix))
 
 (cram
   (package xapi)

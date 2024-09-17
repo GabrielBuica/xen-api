@@ -96,6 +96,7 @@ let server handler sock =
         Debug.with_thread_named handler.name
           (fun () ->
             try
+              Tgroup.(of_originator Group.Originator.Internal_Server) ;
               establish_server ~signal_fds:[status_out] handler_by_thread
                 handler sock
             with PleaseClose -> debug "Server thread exiting"

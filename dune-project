@@ -19,6 +19,8 @@
   (name zstd)
 )
 
+(package
+  (name tgroup))
 
 (package
   (name clock)

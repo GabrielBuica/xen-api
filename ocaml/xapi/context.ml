@@ -276,6 +276,11 @@ let attr_of_req (req : Http.Request.t) =
         [("http.request.body.size", Printf.sprintf "%Li" content_length)]
       )
       req.content_length
+  ; attribute_helper_fn
+      (fun originator ->
+        [("http.request.originator", Printf.sprintf "%s" originator)]
+      )
+      req.originator
   ; List.map
       (fun (h, v) ->
         ( h |> String.lowercase_ascii |> Printf.sprintf "http.request.header.%s"

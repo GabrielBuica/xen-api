@@ -44,10 +44,17 @@ module Thread_state = struct
     ; task: API.ref_task
     ; name: string
     ; waiting_for: (resource * time) option
+    ; _cgroup: Tgroup.state
   }
 
   let empty =
-    {acquired_resources= []; task= Ref.null; name= ""; waiting_for= None}
+    {
+      acquired_resources= []
+    ; task= Ref.null
+    ; name= ""
+    ; waiting_for= None
+    ; _cgroup= Tgroup.empty_state
+    }
 
   let m = Mutex.create ()
 
@@ -89,8 +96,9 @@ module Thread_state = struct
             IntMap.add id ts !thread_states
     )
 
-  let with_named_thread name task f =
-    update (fun ts -> {ts with name; task}) ;
+  let with_named_thread ?(_cgroup : Tgroup.state = Tgroup.empty_state) name task
+      f =
+    update (fun ts -> {ts with name; task; _cgroup}) ;
     finally f (fun () -> update (fun ts -> {ts with name= ""; task= Ref.null}))
 
   let now () = Unix.gettimeofday ()

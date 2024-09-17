@@ -86,6 +86,7 @@ module Request : sig
     ; mutable close: bool
     ; additional_headers: (string * string) list
     ; body: string option
+    ; originator: string option
     ; traceparent: string option
   }
 
@@ -109,6 +110,7 @@ module Request : sig
     -> ?content_type:string
     -> ?host:string
     -> ?query:(string * string) list
+    -> ?originator:string
     -> ?traceparent:string
     -> user_agent:string
     -> method_t
@@ -133,6 +135,8 @@ module Request : sig
 
   val with_tracing :
     ?attributes:(string * string) list -> name:string -> t -> (t -> 'a) -> 'a
+
+  val with_originator_of : t option -> (string option -> unit) -> unit
 end
 
 (** Parsed form of the HTTP response *)
@@ -228,6 +232,8 @@ module Hdr : sig
   val accept : string
 
   val location : string
+
+  val originator : string
 
   val traceparent : string
 
