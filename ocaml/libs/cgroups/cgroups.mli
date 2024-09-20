@@ -1,15 +1,15 @@
-val init : unit -> unit
-
-module Creator : sig
+module Group : sig
   type t
 
-  val default_creator : t
+  val of_originator : string -> t
 
-  val name : t -> string
+  val init : unit -> unit
 
-  val of_http_hdr : string option -> t option
-
-  val to_cgroup : t -> string
-
-  val set_priority : t -> unit
+  val attach_task : t -> string -> unit
 end
+
+type state
+
+val empty_state : state
+
+val set_cur_cgroup : originator:string -> unit

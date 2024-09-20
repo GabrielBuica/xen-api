@@ -1,4 +1,4 @@
 (library
  (name cgroups)
  (public_name cgroups)
- (libraries xapi-log xapi-stdext-unix))
+ (libraries xapi-log xapi-stdext-unix xapi_stdext_pervasives))
