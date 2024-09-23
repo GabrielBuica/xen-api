@@ -595,7 +595,7 @@ module Request = struct
       "{ frame = %b; method = %s; uri = %s; query = [ %s ]; content_length = [ \
        %s ]; transfer encoding = %s; version = %s; cookie = [ %s ]; task = %s; \
        subtask_of = %s; content-type = %s; host = %s; user_agent = %s; \
-       traceparent = %s }"
+       originator = %s; traceparent = %s }"
       x.frame (string_of_method_t x.m) x.uri (kvpairs x.query)
       (Option.fold ~none:"" ~some:Int64.to_string x.content_length)
       (Option.value ~default:"" x.transfer_encoding)
@@ -605,6 +605,7 @@ module Request = struct
       (Option.value ~default:"" x.content_type)
       (Option.value ~default:"" x.host)
       (Option.value ~default:"" x.user_agent)
+      (Option.value ~default:"" x.originator)
       (Option.value ~default:"" x.traceparent)
 
   let to_header_list x =
@@ -655,6 +656,11 @@ module Request = struct
         ~some:(fun x -> [Hdr.user_agent ^ ": " ^ x])
         x.user_agent
     in
+    let originator =
+      Option.fold ~none:[]
+        ~some:(fun x -> [Hdr.originator ^ ": " ^ x])
+        x.originator
+    in
     let traceparent =
       Option.fold ~none:[]
         ~some:(fun x -> [Hdr.traceparent ^ ": " ^ x])
@@ -677,6 +683,7 @@ module Request = struct
     @ content_type
     @ host
     @ user_agent
+    @ originator
     @ traceparent
     @ close
     @ List.map (fun (k, v) -> k ^ ": " ^ v) x.additional_headers
