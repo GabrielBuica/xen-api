@@ -76,9 +76,15 @@ module Group = struct
     type t = Internal_Host_SM | EXTERNAL
 
     let of_string = function
-      | s when String.equal SM.name s ->
+      | s
+        when String.equal
+               (String.lowercase_ascii SM.name)
+               (String.lowercase_ascii s) ->
           Internal_Host_SM
-      | s when String.equal External.name s ->
+      | s
+        when String.equal
+               (String.lowercase_ascii External.name)
+               (String.lowercase_ascii s) ->
           EXTERNAL
       | _ ->
           EXTERNAL
