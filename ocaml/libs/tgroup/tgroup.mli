@@ -7,7 +7,15 @@ module Group : sig
 
   module Originator : sig
     type t = Internal_Host_SM | EXTERNAL
+
+    val of_string : string -> t
+
+    val to_string : t -> string
   end
+
+  val of_originator : Originator.t -> t
+
+  val get_originator : t -> Originator.t
 end
 
 module Cgroup : sig
