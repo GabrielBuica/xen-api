@@ -510,7 +510,16 @@ let request_of_bio ?proxy_seen ~read_timeout ~total_timeout ~max_length ic =
     (None, None)
 
 let handle_one (x : 'a Server.t) ss context (req : Http.Request.t) =
-  let@ req = Http.Request.with_tracing ~name:__FUNCTION__ req in
+  let@ req =
+    Http.Request.with_tracing
+      ~attributes:
+        [
+          ( "req.originator"
+          , Option.fold ~none:"none" ~some:Fun.id req.originator
+          )
+        ]
+      ~name:__FUNCTION__ req
+  in
   let span = Http.Request.traceparent_of req in
   let ic = Buf_io.of_fd ss in
   let finished = ref false in

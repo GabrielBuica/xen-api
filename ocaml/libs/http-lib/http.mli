@@ -110,6 +110,7 @@ module Request : sig
     -> ?content_type:string
     -> ?host:string
     -> ?query:(string * string) list
+    -> ?originator:string
     -> ?traceparent:string
     -> user_agent:string
     -> method_t

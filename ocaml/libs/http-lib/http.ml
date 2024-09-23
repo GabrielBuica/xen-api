@@ -562,7 +562,7 @@ module Request = struct
 
   let make ?(frame = false) ?(version = "1.1") ?(keep_alive = true) ?accept
       ?cookie ?length ?auth ?subtask_of ?body ?(headers = []) ?content_type
-      ?host ?(query = []) ?traceparent ~user_agent meth path =
+      ?host ?(query = []) ?originator ?traceparent ~user_agent meth path =
     {
       empty with
       version
@@ -581,6 +581,7 @@ module Request = struct
     ; body
     ; accept
     ; query
+    ; originator
     ; traceparent
     }
 
