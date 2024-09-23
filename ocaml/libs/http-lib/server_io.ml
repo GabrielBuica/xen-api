@@ -21,6 +21,7 @@ open D
 
 type handler = {
     name: string
+  ; originator: string option
   ; (* body should close the provided fd *)
     body: Unix.sockaddr -> Unix.file_descr -> unit
   ; lock: Xapi_stdext_threads.Semaphore.t
@@ -33,7 +34,11 @@ let handler_by_thread (h : handler) (s : Unix.file_descr)
       Fun.protect
         ~finally:(fun () -> Xapi_stdext_threads.Semaphore.release h.lock 1)
         (Debug.with_thread_named h.name (fun () ->
-             Tgroup.of_originator Tgroup.Group.Originator.Internal_Host_SM ;
+             Option.iter
+               (fun o ->
+                 o |> Tgroup.Group.Originator.of_string |> Tgroup.of_originator
+               )
+               h.originator ;
              h.body caller s
          )
         )

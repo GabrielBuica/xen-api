@@ -73,7 +73,7 @@ module Group = struct
         External.name
 
   module Originator = struct
-    type t = Internal_Host_SM | EXTERNAL [@@deriving ppx]
+    type t = Internal_Host_SM | EXTERNAL
 
     let of_string = function
       | s when String.equal SM.name s ->

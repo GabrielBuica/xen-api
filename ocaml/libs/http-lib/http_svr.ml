@@ -509,7 +509,7 @@ let request_of_bio ?proxy_seen ~read_timeout ~total_timeout ~max_length ic =
     ) ;
     (None, None)
 
-let handle_one (x : 'a Server.t) ss context req =
+let handle_one (x : 'a Server.t) ss context (req : Http.Request.t) =
   let@ req = Http.Request.with_tracing ~name:__FUNCTION__ req in
   let span = Http.Request.traceparent_of req in
   let ic = Buf_io.of_fd ss in
@@ -589,13 +589,13 @@ let handle_connection ~header_read_timeout ~header_total_timeout
         ~max_length:max_header_length ic
     in
 
-    (* 2. now we attempt to process the request *)
+    (* 3. now we attempt to process the request *)
     let finished =
       Option.fold ~none:true
         ~some:(handle_one x ss x.Server.default_context)
         req
     in
-    (* 3. do it again if the connection is kept open, but without timeouts *)
+    (* 4. do it again if the connection is kept open, but without timeouts *)
     if not finished then
       loop ~read_timeout:None ~total_timeout:None proxy
   in
@@ -673,6 +673,7 @@ let start ?header_read_timeout ?header_total_timeout ?max_header_length
   let handler =
     {
       Server_io.name
+    ; originator= None
     ; body=
         handle_connection ~header_read_timeout ~header_total_timeout
           ~max_header_length x
