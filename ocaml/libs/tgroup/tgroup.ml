@@ -72,18 +72,22 @@ module Group = struct
 
   let all = [Group Internal_Host_SM; Group EXTERNAL]
 
+  let of_originator : string -> t = function
+    | "SM" ->
+        Group Internal_Host_SM
+    | _ ->
+        Group EXTERNAL
+end
+
+module Cgroup = struct
+  open Group
+
   let init () =
     all
     |> List.map (function Group elt -> requests // to_cgroup elt)
     |> List.iter (fun dir -> Xapi_stdext_unix.Unixext.mkdir_rec dir 0o755)
 
   let dir_of = function Group group -> requests // to_cgroup group
-
-  let of_originator : string -> t = function
-    | "SM" ->
-        Group Internal_Host_SM
-    | _ ->
-        Group EXTERNAL
 
   let write_tid_to_tasks filename tid =
     let fd =
@@ -101,6 +105,15 @@ module Group = struct
   let attach_task group tid =
     let tasks_file = (group |> dir_of) // "tasks" in
     write_tid_to_tasks tasks_file tid
+
+  let set_cur_cgroup ~originator =
+    match (originator, Pthread.self ()) with
+    | "SM", Some tid ->
+        attach_task (Group Internal_Host_SM) tid
+    | _, Some tid ->
+        attach_task (Group EXTERNAL) tid
+    | _ ->
+        ()
 end
 
 type state = {
@@ -110,12 +123,3 @@ type state = {
 }
 
 let empty_state = {_originator= None; _tid= None; _cgroup_dir= None}
-
-let set_cur_cgroup ~originator =
-  match (originator, Pthread.self ()) with
-  | "SM", Some tid ->
-      Group.attach_task (Group Internal_Host_SM) tid
-  | _, Some tid ->
-      Group.attach_task (Group EXTERNAL) tid
-  | _ ->
-      ()

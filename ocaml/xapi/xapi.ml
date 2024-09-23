@@ -1101,7 +1101,7 @@ let server_init () =
             )
           ; ( "Initialize Tgroup"
             , [Startup.OnlyMaster]
-            , fun () -> Tgroup.Group.init ()
+            , fun () -> Tgroup.Cgroup.init ()
             )
           ; ( "Listening unix socket"
             , []
