@@ -1,21 +1,27 @@
+module Pthread : sig
+  type t
+end
+
 module Group : sig
   type t
 
-  val of_originator : string -> t
-
-  
+  module Originator : sig
+    type t = Internal_Host_SM | EXTERNAL
+  end
 end
 
 module Cgroup : sig
   val init : unit -> unit
 
-  val attach_task : Group.t -> string -> unit
+  val of_originator : Group.Originator.t -> unit
+end
 
-  val set_cur_cgroup : originator:string -> unit
+module Priority : sig
+  val of_originator : Group.Originator.t -> unit
 end
 
 type state
 
 val empty_state : state
 
-
+val of_originator : Group.Originator.t -> unit

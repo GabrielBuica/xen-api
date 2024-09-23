@@ -72,11 +72,9 @@ module Group = struct
 
   let all = [Group Internal_Host_SM; Group EXTERNAL]
 
-  let of_originator : string -> t = function
-    | "SM" ->
-        Group Internal_Host_SM
-    | _ ->
-        Group EXTERNAL
+  module Originator = struct
+    type t = Internal_Host_SM | EXTERNAL [@deriving ppx]
+  end
 end
 
 module Cgroup = struct
@@ -106,14 +104,32 @@ module Cgroup = struct
     let tasks_file = (group |> dir_of) // "tasks" in
     write_tid_to_tasks tasks_file tid
 
-  let set_cur_cgroup ~originator =
+  let set_cur_cgroup ~(originator : Group.Originator.t) =
     match (originator, Pthread.self ()) with
-    | "SM", Some tid ->
+    | Internal_Host_SM, Some tid ->
         attach_task (Group Internal_Host_SM) tid
     | _, Some tid ->
         attach_task (Group EXTERNAL) tid
     | _ ->
         ()
+
+  let of_originator (originator : Group.Originator.t) =
+    set_cur_cgroup ~originator
+end
+
+module Priority = struct
+  type policy_t = SCHED_OTHER | SCHED_FIFO | SCHED_RR
+
+  let chrt ~policy:policy_t ~(tid : Pthread.t) (priority : int) = ()
+  (* call chrt -r -p priority tid *)
+  (* in the future use a syscall *)
+
+  let of_originator = function
+    | Group.Originator.Internal_Host_SM ->
+        chrt ~policy:SCHED_RR ~tid:(Pthread.self ()) 70
+    | _ ->
+        ()
+  (* calls chrt to set the priority of the request *)
 end
 
 type state = {
@@ -123,3 +139,7 @@ type state = {
 }
 
 let empty_state = {_originator= None; _tid= None; _cgroup_dir= None}
+
+let of_originator originator =
+  Cgroup.of_originator originator ;
+  Priority.of_originator originator

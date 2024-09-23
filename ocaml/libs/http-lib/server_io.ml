@@ -33,7 +33,7 @@ let handler_by_thread (h : handler) (s : Unix.file_descr)
       Fun.protect
         ~finally:(fun () -> Xapi_stdext_threads.Semaphore.release h.lock 1)
         (Debug.with_thread_named h.name (fun () ->
-             Tgroup.Cgroup.set_cur_cgroup ~originator:"SM" ;
+             Tgroup.of_originator Tgroup.Group.Originator.Internal_Host_SM ;
              h.body caller s
          )
         )
