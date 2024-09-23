@@ -35,7 +35,7 @@
 )
 
 (package
-  (name cgroups)
+  (name tgroup)
   (depends xapi-stdext-unix)
 )
 
