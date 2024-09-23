@@ -34,11 +34,12 @@ let handler_by_thread (h : handler) (s : Unix.file_descr)
       Fun.protect
         ~finally:(fun () -> Xapi_stdext_threads.Semaphore.release h.lock 1)
         (Debug.with_thread_named h.name (fun () ->
-             Option.iter
-               (fun o ->
-                 o |> Tgroup.Group.Originator.of_string |> Tgroup.of_originator
-               )
-               h.originator ;
+             h.originator
+             |> Option.value
+                  ~default:Tgroup.Group.Originator.(to_string EXTERNAL)
+             |> Tgroup.Group.Originator.of_string
+             |> Tgroup.of_originator ;
+
              h.body caller s
          )
         )
