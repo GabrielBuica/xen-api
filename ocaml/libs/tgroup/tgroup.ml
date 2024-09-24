@@ -38,6 +38,8 @@ module Group = struct
     type t
 
     let name = "SM"
+
+    let cpu_shares = "65536"
   end
 
   module Internal = struct
@@ -50,6 +52,8 @@ module Group = struct
     type t
 
     let name = "external"
+
+    let cpu_shares = "128"
   end
 
   module Host = struct
@@ -58,22 +62,33 @@ module Group = struct
     let name = "host"
   end
 
+  module Server = struct
+    type t
+
+    let name = "server"
+
+    let cpu_shares = "65536"
+  end
+
   type _ group =
     | Internal_Host_SM : (Internal.t * Host.t * SM.t) group
     | EXTERNAL : External.t group
+    | Internal_Server : (Internal.t * Server.t) group
 
   type t = Group : 'a group -> t
 
-  let all = [Group Internal_Host_SM; Group EXTERNAL]
+  let all = [Group Internal_Host_SM; Group EXTERNAL; Group Internal_Server]
 
   let to_cgroup : type a. a group -> string = function
     | Internal_Host_SM ->
         Internal.name // Host.name // SM.name
     | EXTERNAL ->
         External.name
+    | Internal_Server ->
+        Internal.name // Server.name
 
   module Originator = struct
-    type t = Internal_Host_SM | EXTERNAL
+    type t = Internal_Host_SM | EXTERNAL | Internal_Server
 
     let of_string = function
       | s
@@ -92,6 +107,8 @@ module Group = struct
     let to_string = function
       | Internal_Host_SM ->
           SM.name
+      | Internal_Server ->
+          Server.name
       | EXTERNAL ->
           External.name
   end
@@ -99,6 +116,8 @@ module Group = struct
   let of_originator = function
     | Originator.Internal_Host_SM ->
         Group Internal_Host_SM
+    | Originator.Internal_Server ->
+        Group Internal_Server
     | Originator.EXTERNAL ->
         Group EXTERNAL
 
@@ -107,19 +126,16 @@ module Group = struct
         Originator.Internal_Host_SM
     | Group EXTERNAL ->
         Originator.EXTERNAL
+    | Group Internal_Server ->
+        Originator.Internal_Server
 end
 
 module Cgroup = struct
   open Group
 
-  let init () =
-    all
-    |> List.map (function Group elt -> requests // to_cgroup elt)
-    |> List.iter (fun dir -> Xapi_stdext_unix.Unixext.mkdir_rec dir 0o755)
-
   let dir_of = function Group group -> requests // to_cgroup group
 
-  let write_tid_to_tasks filename tid =
+  let write_to_file filename tid =
     let fd =
       Unix.openfile filename [Unix.O_WRONLY; Unix.O_CREAT; Unix.O_TRUNC] 0o640
     in
@@ -134,7 +150,19 @@ module Cgroup = struct
 
   let attach_task group tid =
     let tasks_file = dir_of group // "tasks" in
-    write_tid_to_tasks tasks_file tid
+    write_to_file tasks_file tid
+
+  let set_cpu_shares group share =
+    let tasks_file = dir_of group // "cpu.shares" in
+    write_to_file tasks_file share
+
+  let init () =
+    all
+    |> List.map (function Group elt -> requests // to_cgroup elt)
+    |> List.iter (fun dir -> Xapi_stdext_unix.Unixext.mkdir_rec dir 0o755) ;
+    set_cpu_shares (Group EXTERNAL) Group.External.cpu_shares ;
+    set_cpu_shares (Group Internal_Host_SM) Group.SM.cpu_shares ;
+    set_cpu_shares (Group Internal_Server) Group.Server.cpu_shares
 
   let set_cur_cgroup ~originator =
     match (originator, Pthread.self ()) with
@@ -142,6 +170,10 @@ module Cgroup = struct
         debug "Attaching tid: %s to cgroup %s" tid (to_cgroup Internal_Host_SM) ;
         attach_task (Group Internal_Host_SM) tid
     | Originator.Internal_Host_SM, None ->
+        ()
+    | Originator.Internal_Server, Some tid ->
+        attach_task (Group Internal_Server) tid
+    | Originator.Internal_Server, None ->
         ()
     | Originator.EXTERNAL, Some tid ->
         attach_task (Group EXTERNAL) tid
@@ -161,6 +193,8 @@ module Priority = struct
   let of_originator = function
     | Group.Originator.Internal_Host_SM ->
         chrt ~_policy:SCHED_RR ~_tid:(Pthread.self ()) 70
+    | Group.Originator.Internal_Server ->
+        chrt ~_policy:SCHED_RR ~_tid:(Pthread.self ()) 80
     | Group.Originator.EXTERNAL ->
         ()
 end
@@ -176,3 +210,9 @@ let empty_state = {_originator= None; _tid= None; _cgroup_dir= None}
 let of_originator originator =
   Cgroup.of_originator originator ;
   Priority.of_originator originator
+
+let of_req_originator originator =
+  originator
+  |> Option.value ~default:Group.Originator.(to_string EXTERNAL)
+  |> Group.Originator.of_string
+  |> of_originator

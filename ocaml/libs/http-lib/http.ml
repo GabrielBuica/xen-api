@@ -729,6 +729,8 @@ module Request = struct
         | None ->
             f req
     )
+
+  let with_originator_of req f = Option.iter (fun req -> f req.originator) req
 end
 
 module Response = struct

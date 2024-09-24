@@ -6,7 +6,7 @@ module Group : sig
   type t
 
   module Originator : sig
-    type t = Internal_Host_SM | EXTERNAL
+    type t = Internal_Host_SM | EXTERNAL | Internal_Server
 
     val of_string : string -> t
 
@@ -33,3 +33,5 @@ type state
 val empty_state : state
 
 val of_originator : Group.Originator.t -> unit
+
+val of_req_originator : string option -> unit

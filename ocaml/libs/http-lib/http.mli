@@ -135,6 +135,8 @@ module Request : sig
 
   val with_tracing :
     ?attributes:(string * string) list -> name:string -> t -> (t -> 'a) -> 'a
+
+  val with_originator_of : t option -> (string option -> unit) -> unit
 end
 
 (** Parsed form of the HTTP response *)

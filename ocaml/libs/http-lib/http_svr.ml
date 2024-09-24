@@ -597,13 +597,7 @@ let handle_connection ~header_read_timeout ~header_total_timeout
       request_of_bio ?proxy_seen ~read_timeout ~total_timeout
         ~max_length:max_header_length ic
     in
-    req
-    |> Option.iter (fun (req : Request.t) ->
-           req.originator
-           |> Option.value ~default:Tgroup.Group.Originator.(to_string EXTERNAL)
-           |> Tgroup.Group.Originator.of_string
-           |> Tgroup.of_originator
-       ) ;
+    Request.with_originator_of req Tgroup.of_req_originator ;
 
     (* 3. now we attempt to process the request *)
     let finished =
