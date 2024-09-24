@@ -165,20 +165,18 @@ module Cgroup = struct
     set_cpu_shares (Group Internal_Server) Group.Server.cpu_shares
 
   let set_cur_cgroup ~originator =
-    match (originator, Pthread.self ()) with
-    | Originator.Internal_Host_SM, Some tid ->
-        debug "Attaching tid: %s to cgroup %s" tid (to_cgroup Internal_Host_SM) ;
-        attach_task (Group Internal_Host_SM) tid
-    | Originator.Internal_Host_SM, None ->
+    match Pthread.self () with
+    | None ->
         ()
-    | Originator.Internal_Server, Some tid ->
-        attach_task (Group Internal_Server) tid
-    | Originator.Internal_Server, None ->
-        ()
-    | Originator.EXTERNAL, Some tid ->
-        attach_task (Group EXTERNAL) tid
-    | Originator.EXTERNAL, None ->
-        ()
+    | Some tid -> (
+      match originator with
+      | Originator.Internal_Host_SM ->
+          attach_task (Group Internal_Host_SM) tid
+      | Originator.Internal_Server ->
+          attach_task (Group Internal_Server) tid
+      | Originator.EXTERNAL ->
+          attach_task (Group EXTERNAL) tid
+    )
 
   let of_originator originator = set_cur_cgroup ~originator
 end
