@@ -597,7 +597,8 @@ let handle_connection ~header_read_timeout ~header_total_timeout
       request_of_bio ?proxy_seen ~read_timeout ~total_timeout
         ~max_length:max_header_length ic
     in
-    Request.with_originator_of req Tgroup.of_req_originator ;
+
+    (* Request.with_originator_of req Tgroup.of_req_originator ; *)
 
     (* 3. now we attempt to process the request *)
     let finished =
