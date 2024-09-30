@@ -16,6 +16,14 @@ module Group : sig
   val of_originator : Originator.t -> t
 
   val get_originator : t -> Originator.t
+
+  module Creator : sig
+    type t = {originator: Originator.t}
+
+    val make : originator:Originator.t -> t
+  end
+
+  val of_creator : Creator.t -> t
 end
 
 module Cgroup : sig
@@ -33,5 +41,9 @@ type state
 val empty_state : state
 
 val of_originator : Group.Originator.t -> unit
+
+val of_creator : Group.Creator.t option -> unit
+
+type with_creator_t = Group.Creator.t option -> unit
 
 val of_req_originator : string option -> unit

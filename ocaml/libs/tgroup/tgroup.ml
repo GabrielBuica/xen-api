@@ -128,6 +128,14 @@ module Group = struct
         Originator.EXTERNAL
     | Group Internal_Server ->
         Originator.Internal_Server
+
+  module Creator = struct
+    type t = {originator: Originator.t}
+
+    let make ~originator = {originator}
+  end
+
+  let of_creator c = of_originator c.Creator.originator
 end
 
 module Cgroup = struct
@@ -209,8 +217,17 @@ let of_originator originator =
   Cgroup.of_originator originator ;
   Priority.of_originator originator
 
+let of_creator =
+  Option.iter (fun creator -> creator.Group.Creator.originator |> of_originator)
+
+let of_current_thread () =
+  (*gets the creator from this current named thread and call of creator with it*)
+  ()
+
 let of_req_originator originator =
   originator
   |> Option.value ~default:Group.Originator.(to_string EXTERNAL)
   |> Group.Originator.of_string
   |> of_originator
+
+type with_creator_t = Group.Creator.t option -> unit

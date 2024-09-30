@@ -97,7 +97,8 @@
   rresult
   http_lib
   qcheck-core
-  xapi_fd_test))
+  xapi_fd_test
+  xapi-stdext-threads))
 
 (rule
  (alias stresstest)

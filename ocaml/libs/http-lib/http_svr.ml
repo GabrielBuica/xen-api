@@ -575,7 +575,7 @@ let handle_one (x : 'a Server.t) ss context (req : Http.Request.t) =
     ) ;
     !finished
 
-let handle_connection ~header_read_timeout ~header_total_timeout
+let handle_connection ~header_read_timeout ~header_total_timeout ~with_creator
     ~max_header_length (x : 'a Server.t) caller ss =
   ( match caller with
   | Unix.ADDR_UNIX _ ->
@@ -598,7 +598,7 @@ let handle_connection ~header_read_timeout ~header_total_timeout
         ~max_length:max_header_length ic
     in
 
-    (* Request.with_originator_of req Tgroup.of_req_originator ; *)
+    with_creator (Request.creator_of_req req) ;
 
     (* 3. now we attempt to process the request *)
     let finished =
@@ -681,6 +681,7 @@ type socket = Unix.file_descr * string
 (* Start an HTTP server on a new socket *)
 let start ?header_read_timeout ?header_total_timeout ?max_header_length
     ~conn_limit (x : 'a Server.t) (socket, name) =
+  (* let tgroup req = Tgroup.of_req_originator req in *)
   let handler =
     {
       Server_io.name
@@ -690,7 +691,7 @@ let start ?header_read_timeout ?header_total_timeout ?max_header_length
     ; lock= Xapi_stdext_threads.Semaphore.create conn_limit
     }
   in
-  let server = Server_io.server handler socket in
+  let server = Server_io.server ~with_creator:Tgroup.of_creator handler socket in
   Hashtbl.add socket_table socket server
 
 exception Socket_not_found

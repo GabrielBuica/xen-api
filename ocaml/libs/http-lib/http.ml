@@ -731,6 +731,20 @@ module Request = struct
     )
 
   let with_originator_of req f = Option.iter (fun req -> f req.originator) req
+
+  let creator_of_req req =
+    Option.map
+      (fun req ->
+        let originator =
+          match req.originator with
+          | Some originator ->
+              Tgroup.Group.Originator.of_string originator
+          | None ->
+              Tgroup.Group.Originator.EXTERNAL
+        in
+        Tgroup.Group.Creator.make ~originator
+      )
+      req
 end
 
 module Response = struct

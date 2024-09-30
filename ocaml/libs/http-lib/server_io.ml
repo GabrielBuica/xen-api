@@ -22,17 +22,22 @@ open D
 type handler = {
     name: string
   ; (* body should close the provided fd *)
-    body: Unix.sockaddr -> Unix.file_descr -> unit
+    body:
+         with_creator:(Tgroup.Group.Creator.t option -> unit)
+      -> Unix.sockaddr
+      -> Unix.file_descr
+      -> unit
   ; lock: Xapi_stdext_threads.Semaphore.t
 }
 
-let handler_by_thread (h : handler) (s : Unix.file_descr)
+let handler_by_thread ~with_creator (h : handler) (s : Unix.file_descr)
     (caller : Unix.sockaddr) =
-  Thread.create
+  Xapi_stdext_threads.Threadext.create
     (fun () ->
       Fun.protect
         ~finally:(fun () -> Xapi_stdext_threads.Semaphore.release h.lock 1)
-        (Debug.with_thread_named h.name (fun () -> h.body caller s))
+        (Debug.with_thread_named h.name (fun () -> h.body ~with_creator caller s)
+        )
     )
     ()
 
@@ -78,7 +83,7 @@ let establish_server ?(signal_fds = []) forker handler sock =
 
 type server = {shutdown: unit -> unit}
 
-let server handler sock =
+let server ~with_creator handler sock =
   let status_out, status_in = Unix.pipe () in
   let toclose = ref [sock; status_in; status_out] in
   let close' fd =
@@ -97,7 +102,8 @@ let server handler sock =
           (fun () ->
             try
               Tgroup.(of_originator Group.Originator.Internal_Server) ;
-              establish_server ~signal_fds:[status_out] handler_by_thread
+              establish_server ~signal_fds:[status_out]
+                (handler_by_thread ~with_creator)
                 handler sock
             with PleaseClose -> debug "Server thread exiting"
           )

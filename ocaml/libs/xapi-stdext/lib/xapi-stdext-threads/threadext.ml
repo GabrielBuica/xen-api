@@ -132,6 +132,7 @@ let wait_timed_write fd timeout =
   | _ ->
       assert false
 
+(* ----- FIRST Draft -----*)
 (* let create ?name ?priority f () =
    let me = Threadext.self () in
    let state = me.state in
@@ -142,3 +143,18 @@ let wait_timed_write fd timeout =
        Tgroup.of_priority priority
      )
      () *)
+(* ------Second Draft -----*)
+
+let create ?traceparent ?name f =
+  (* let parent = Thread.self () in *)
+  (*maybe retain the pthread id as well*)
+  Thread.create (fun () ->
+      (* let child = Thread.self () in *)
+      (* debug "New thread %s (%s) of parent %s"
+         (child |> Thread.id |> string_of_int)
+         name
+         (parent |> Thread.id |> string_of_int) ; *)
+
+      (* make call to pthread_setname_np binding *)
+      f ()
+  )

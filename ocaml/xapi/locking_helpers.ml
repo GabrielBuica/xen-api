@@ -44,7 +44,7 @@ module Thread_state = struct
     ; task: API.ref_task
     ; name: string
     ; waiting_for: (resource * time) option
-    ; _cgroup: Tgroup.state
+    ; tgroup: Tgroup.state
   }
 
   let empty =
@@ -53,7 +53,7 @@ module Thread_state = struct
     ; task= Ref.null
     ; name= ""
     ; waiting_for= None
-    ; _cgroup= Tgroup.empty_state
+    ; tgroup= Tgroup.empty_state
     }
 
   let m = Mutex.create ()

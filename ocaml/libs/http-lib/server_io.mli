@@ -14,7 +14,11 @@
 
 type handler = {
     name: string  (** used for naming the thread *)
-  ; body: Unix.sockaddr -> Unix.file_descr -> unit
+  ; body:
+         with_creator:(Tgroup.Group.Creator.t option -> unit)
+      -> Unix.sockaddr
+      -> Unix.file_descr
+      -> unit
         (** function called in a thread for each connection*)
   ; lock: Xapi_stdext_threads.Semaphore.t
 }
@@ -23,5 +27,6 @@ type server = {
     shutdown: unit -> unit  (** clean shutdown, blocks until thread has gone *)
 }
 
-val server : handler -> Unix.file_descr -> server
+val server :
+  with_creator:Tgroup.with_creator_t -> handler -> Unix.file_descr -> server
 (** Creates a server given a bound socket and a handler *)

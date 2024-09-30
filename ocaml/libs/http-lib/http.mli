@@ -137,6 +137,8 @@ module Request : sig
     ?attributes:(string * string) list -> name:string -> t -> (t -> 'a) -> 'a
 
   val with_originator_of : t option -> (string option -> unit) -> unit
+
+  val creator_of_req : t option -> Tgroup.Group.Creator.t option
 end
 
 (** Parsed form of the HTTP response *)
