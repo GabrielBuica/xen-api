@@ -96,9 +96,9 @@ module Thread_state = struct
             IntMap.add id ts !thread_states
     )
 
-  let with_named_thread ?(_cgroup : Tgroup.state = Tgroup.empty_state) name task
+  let with_named_thread ?(tgroup : Tgroup.state = Tgroup.empty_state) name task
       f =
-    update (fun ts -> {ts with name; task; _cgroup}) ;
+    update (fun ts -> {ts with name; task; tgroup}) ;
     finally f (fun () -> update (fun ts -> {ts with name= ""; task= Ref.null}))
 
   let now () = Unix.gettimeofday ()

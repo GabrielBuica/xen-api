@@ -23,7 +23,7 @@ val kill_resource : resource -> unit
 (** Records per-thread diagnostic information *)
 module Thread_state : sig
   val with_named_thread :
-    ?_cgroup:Tgroup.state -> string -> API.ref_task -> (unit -> 'a) -> 'a
+    ?tgroup:Tgroup.state -> string -> API.ref_task -> (unit -> 'a) -> 'a
   (** Called when a thread becomes associated with a particular task *)
 
   val waiting_for : resource -> unit
