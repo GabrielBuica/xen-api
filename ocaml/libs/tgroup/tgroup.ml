@@ -31,6 +31,10 @@ module Pthread = struct
     | _ ->
         debug "thread-self: can't parse: %s" unix_pid_tid ;
         None
+
+  external self2 : unit -> int = "stub_pthread_self"
+
+  external set_name : string -> string option = "stub_pthread_set_name"
 end
 
 module Group = struct
@@ -177,20 +181,22 @@ module Cgroup = struct
     | None ->
         ()
     | Some tid -> (
-      match originator with
-      | Originator.Internal_Host_SM ->
-          attach_task (Group Internal_Host_SM) tid
-      | Originator.Internal_Server ->
-          attach_task (Group Internal_Server) tid
-      | Originator.EXTERNAL ->
-          attach_task (Group EXTERNAL) tid
-    )
+        debug "self:%s ; self2: %i" tid (Pthread.self2 ()) ;
+        match originator with
+        | Originator.Internal_Host_SM ->
+            attach_task (Group Internal_Host_SM) tid
+        | Originator.Internal_Server ->
+            attach_task (Group Internal_Server) tid
+        | Originator.EXTERNAL ->
+            attach_task (Group EXTERNAL) tid
+      )
 
   let of_originator originator = set_cur_cgroup ~originator
 end
 
 module Priority = struct
-  type policy_t = SCHED_OTHER | SCHED_FIFO | SCHED_RR
+  (* type policy_t = SCHED_OTHER | SCHED_FIFO | SCHED_RR *)
+  type policy_t = SCHED_RR
 
   let chrt ~(_policy : policy_t) ~(_tid : Pthread.t) (_priority : int) = ()
   (* call chrt -r -p priority tid *)
@@ -220,7 +226,7 @@ let of_originator originator =
 let of_creator =
   Option.iter (fun creator -> creator.Group.Creator.originator |> of_originator)
 
-let of_current_thread () =
+let _of_current_thread () =
   (*gets the creator from this current named thread and call of creator with it*)
   ()
 

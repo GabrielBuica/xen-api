@@ -1,4 +1,8 @@
 (library
  (name tgroup)
  (public_name tgroup)
+ (foreign_stubs
+  (language c)
+  (names pthread_helpers pthread_stubs))
+ (c_library_flags -lpthread)
  (libraries xapi-log xapi-stdext-unix xapi_stdext_pervasives))

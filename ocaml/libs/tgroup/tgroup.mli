@@ -1,5 +1,9 @@
 module Pthread : sig
   type t
+
+  val self2 : unit -> int
+
+  val set_name : string -> string option
 end
 
 module Group : sig
