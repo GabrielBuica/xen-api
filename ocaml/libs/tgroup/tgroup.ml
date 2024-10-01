@@ -12,10 +12,6 @@
  * GNU Lesser General Public License for more details.
  *)
 
-module D = Debug.Make (struct let name = __MODULE__ end)
-
-open D
-
 let ( // ) = Filename.concat
 
 let requests = "/sys/fs/cgroup/cpu/control.slice/xapi.service/request"
@@ -29,8 +25,14 @@ module Pthread = struct
     | [_; _; tid] ->
         Some tid
     | _ ->
-        debug "thread-self: can't parse: %s" unix_pid_tid ;
+        (* debug "thread-self: can't parse: %s" unix_pid_tid ; *)
         None
+
+  external c_set_name : string -> int = "stub_pthread_set_name"
+
+  let set_name s =
+    let tname = String.sub s 0 15 in
+    match c_set_name tname with 0 -> Some tname | _ -> None
 end
 
 module Group = struct
@@ -143,8 +145,8 @@ module Cgroup = struct
       (fun () ->
         let buf = tid ^ "\n" in
         let len = String.length buf in
-        if Unix.write fd (Bytes.unsafe_of_string buf) 0 len <> len then
-          debug "tid_write %s > %s failed" tid filename
+        if Unix.write fd (Bytes.unsafe_of_string buf) 0 len <> len then ()
+        (* debug "tid_write %s > %s failed" tid filename *)
       )
       (fun () -> Unix.close fd)
 
@@ -182,7 +184,8 @@ module Cgroup = struct
 end
 
 module Priority = struct
-  type policy_t = SCHED_OTHER | SCHED_FIFO | SCHED_RR
+  (* type policy_t = SCHED_OTHER | SCHED_FIFO | SCHED_RR *)
+  type policy_t = SCHED_RR
 
   let chrt ~(_policy : policy_t) ~(_tid : Pthread.t) (_priority : int) = ()
   (* call chrt -r -p priority tid *)

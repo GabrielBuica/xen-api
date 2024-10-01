@@ -267,6 +267,8 @@ let with_thread_associated ?client ?(quiet = false) desc f x =
       raise exn
 
 let with_thread_named name f x =
+  let _ = Tgroup.Pthread.set_name name in
+
   ThreadLocalTable.add names name ;
   try
     let result = f x in

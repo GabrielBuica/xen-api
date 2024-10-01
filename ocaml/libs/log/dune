@@ -2,15 +2,7 @@
  (name log)
  (public_name xapi-log)
  (foreign_stubs
-   (language c)
-   (names syslog_stubs))
- (libraries
-   astring
-   fmt
-   mtime
-   logs
-   threads.posix
-   xapi-backtrace
- )
- (wrapped false)
-)
+  (language c)
+  (names syslog_stubs))
+ (libraries astring fmt mtime logs tgroup threads.posix xapi-backtrace)
+ (wrapped false))
