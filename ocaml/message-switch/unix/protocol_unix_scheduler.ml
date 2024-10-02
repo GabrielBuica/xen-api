@@ -143,6 +143,10 @@ let start =
   fun () ->
     match !t with
     | None ->
-        t := Some (Thread.create main_loop ())
+        t :=
+          Some
+            (Xapi_stdext_threads.Threadext.create ~name:"msg-s-start" main_loop
+               ()
+            )
     | Some _ ->
         ()

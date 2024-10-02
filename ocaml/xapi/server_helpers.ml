@@ -143,7 +143,7 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
     let async ~need_complete =
       (* Fork thread in which to execute async call *)
       ignore
-        (Xapi_stdext_threads.Threadext.create ~name:"async_dispatch"
+        (Xapi_stdext_threads.Threadext.create ~name:("a:" ^ called_fn_name)
            (fun () ->
              exec_with_context ~__context ~need_complete ~called_async
                ?f_forward:forward_op ~marshaller op_fn

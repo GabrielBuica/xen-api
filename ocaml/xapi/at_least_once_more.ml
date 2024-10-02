@@ -47,7 +47,7 @@ let again (x : manager) =
         x.in_progress <- true ;
         x.needs_doing_again <- false ;
         let (_ : Thread.t) =
-          Thread.create
+          Xapi_stdext_threads.Threadext.create ~name:"again"
             (fun () ->
               (* Always do the operation immediately: thread is only created when work needs doing *)
               x.f () ;

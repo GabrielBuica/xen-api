@@ -82,7 +82,7 @@ let run ~__context tasks =
           if onthread then (
             debug "task [starting thread %s]" tsk_name ;
             ignore
-              (Thread.create
+              (Xapi_stdext_threads.Threadext.create ~name:tsk_name
                  (fun tsk_fct ->
                    Server_helpers.exec_with_subtask ~__context tsk_name
                      (fun ~__context -> thread_exn_wrapper tsk_name tsk_fct

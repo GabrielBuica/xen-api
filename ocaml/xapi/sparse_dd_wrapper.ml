@@ -204,7 +204,7 @@ let start ?(progress_cb = fun _ -> ()) ?base ~verify_cert prezeroed infile
         with_lock m (fun () -> Condition.broadcast c)
   in
   let _ =
-    Thread.create
+    Xapi_stdext_threads.Threadext.create ~name:"sparse_dd"
       (fun () ->
         dd_internal thread_progress_cb base prezeroed verify_cert infile outfile
           size

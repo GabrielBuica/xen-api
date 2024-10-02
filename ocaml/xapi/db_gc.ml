@@ -275,7 +275,7 @@ let single_pass () =
   )
 
 let start_db_gc_thread () =
-  Thread.create
+  Xapi_stdext_threads.Threadext.create ~name:"db_gc"
     (fun () ->
       Debug.with_thread_named "db_gc"
         (fun () ->

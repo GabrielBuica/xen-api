@@ -84,7 +84,9 @@ let start_smapiv1_servers () =
       let module S = Storage_smapiv1_wrapper.Server in
       let s = Xcp_service.make ~path ~queue_name ~rpc_fn:S.process () in
       let (_ : Thread.t) =
-        Thread.create (fun () -> Xcp_service.serve_forever s) ()
+        Xapi_stdext_threads.Threadext.create ~name:"xcp-s-smapiv1"
+          (fun () -> Xcp_service.serve_forever s)
+          ()
       in
       ()
     )
@@ -523,7 +525,7 @@ let rec events_watch ~__context from =
 
 let events_from_sm () =
   ignore
-    (Thread.create
+    (Xapi_stdext_threads.Threadext.create ~name:"cm_events"
        (fun () ->
          Server_helpers.exec_with_new_task "sm_events" (fun __context ->
              while true do
@@ -544,7 +546,9 @@ let start () =
   in
   info "Started service on org.xen.xapi.storage" ;
   let (_ : Thread.t) =
-    Thread.create (fun () -> Xcp_service.serve_forever s) ()
+    Xapi_stdext_threads.Threadext.create ~name:"org.8.storage"
+      (fun () -> Xcp_service.serve_forever s)
+      ()
   in
   ()
 

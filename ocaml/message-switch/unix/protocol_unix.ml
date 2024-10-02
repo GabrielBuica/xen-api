@@ -31,7 +31,7 @@ let thread_forever f v =
     | exception _ ->
         Thread.delay 1.0 ; (loop [@tailcall]) ()
   in
-  Thread.create loop ()
+  Xapi_stdext_threads.Threadext.create ~name:"msg-s-th-4ever" loop ()
 
 module IO = struct
   let whoami () =
@@ -502,7 +502,7 @@ module Server = struct
               List.iter
                 (fun (i, m) ->
                   let (_ : Thread.t) =
-                    Thread.create
+                    Xapi_stdext_threads.Threadext.create ~name:"msg-s-lsn"
                       (fun () ->
                         let response =
                           try process m.Message.payload
