@@ -31,7 +31,9 @@ module Pthread = struct
   external c_set_name : string -> int = "stub_pthread_set_name"
 
   let set_name s =
-    let tname = String.sub s 0 15 in
+    let len = String.length s in
+    let len = if len > 15 then 15 else len in
+    let tname = String.sub s 0 len in
     match c_set_name tname with 0 -> Some tname | _ -> None
 end
 

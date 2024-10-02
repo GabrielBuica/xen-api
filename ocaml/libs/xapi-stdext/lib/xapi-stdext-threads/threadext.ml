@@ -142,3 +142,11 @@ let wait_timed_write fd timeout =
        Tgroup.of_priority priority
      )
      () *)
+
+let create ~name funct arg =
+  Thread.create
+    (fun arg ->
+      let _ = Tgroup.Pthread.set_name name in
+      funct arg
+    )
+    arg

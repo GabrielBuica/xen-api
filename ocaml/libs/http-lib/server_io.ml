@@ -28,7 +28,14 @@ type handler = {
 
 let handler_by_thread (h : handler) (s : Unix.file_descr)
     (caller : Unix.sockaddr) =
-  Thread.create
+  let name =
+    match h.name with
+    | s when String.equal s "/var/lib/xcp/xapi" ->
+        "f.xcp/xapi"
+    | _ ->
+        "f.unknown"
+  in
+  Xapi_stdext_threads.Threadext.create ~name
     (fun () ->
       Fun.protect
         ~finally:(fun () -> Xapi_stdext_threads.Semaphore.release h.lock 1)
@@ -91,7 +98,14 @@ let server handler sock =
       warn "Attempt to double-shutdown Server_io.server detected; ignoring"
   in
   let thread =
-    Thread.create
+    let name =
+      match handler.name with
+      | s when String.equal s "/var/lib/xcp/xapi" ->
+          "s.xcp/xapi"
+      | s ->
+          "s." ^ s
+    in
+    Xapi_stdext_threads.Threadext.create ~name
       (fun () ->
         Debug.with_thread_named handler.name
           (fun () ->

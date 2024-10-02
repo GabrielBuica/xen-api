@@ -377,7 +377,7 @@ let spawn_db_flush_threads () =
     (fun dbconn ->
       let db_path = dbconn.Parse_db_conf.path in
       ignore
-        (Thread.create
+        (Xapi_stdext_threads.Threadext.create ~name:"dbflush"
            (fun () ->
              Debug.with_thread_named
                ("dbflush [" ^ db_path ^ "]")

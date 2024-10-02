@@ -5,4 +5,4 @@
   (language c)
   (names pthread_helpers pthread_stubs))
  (c_library_flags -lpthread)
- (libraries xapi-stdext-unix xapi_stdext_pervasives))
+ (libraries xapi-log xapi-stdext-unix xapi_stdext_pervasives))

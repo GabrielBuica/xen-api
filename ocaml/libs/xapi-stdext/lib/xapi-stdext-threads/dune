@@ -3,6 +3,7 @@
   (name  xapi_stdext_threads)
   (modules :standard \ threadext_test)
   (libraries
+    tgroup
     threads.posix
     unix
     xapi-stdext-unix
