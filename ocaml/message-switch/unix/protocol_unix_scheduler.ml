@@ -13,6 +13,9 @@
  * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  *)
+module D = Debug.Make (struct let name = __MODULE__ end)
+
+open D
 
 let finally' f g =
   try
@@ -145,8 +148,11 @@ let start =
     | None ->
         t :=
           Some
-            (Xapi_stdext_threads.Threadext.create ~name:"msg-s-start" main_loop
-               ()
+            (Xapi_stdext_threads.Threadext.create
+               ~debug:(fun name pname ->
+                 debug "Creating thread %s from parent %s" name pname
+               )
+               ~name:"msg-s-start" main_loop ()
             )
     | Some _ ->
         ()

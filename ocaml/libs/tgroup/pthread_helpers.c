@@ -15,6 +15,8 @@
 
 #include <pthread.h>
 
+#define NAMELEN 16
+
 extern int pthread_set_name(const char *name){
     pthread_t thread;
 
@@ -22,3 +24,11 @@ extern int pthread_set_name(const char *name){
 
     return pthread_setname_np(thread, name);
   }
+
+extern int pthread_get_name(char* thread_name){
+  pthread_t thread;
+  
+  thread = pthread_self();
+
+  return pthread_getname_np(thread, thread_name, NAMELEN);
+}

@@ -125,7 +125,11 @@ let start_master_connection_watchdog () =
       | None ->
           my_watchdog :=
             Some
-              (Xapi_stdext_threads.Threadext.create ~name:"db_m_watchdog"
+              (Xapi_stdext_threads.Threadext.create
+                 ~debug:(fun name pname ->
+                   debug "Creating thread %s from parent %s" name pname
+                 )
+                 ~name:"db_m_watchdog"
                  (fun () ->
                    while true do
                      try

@@ -35,6 +35,8 @@ module Pthread = struct
     let len = if len > 15 then 15 else len in
     let tname = String.sub s 0 len in
     match c_set_name tname with 0 -> Some tname | _ -> None
+
+  external get_name : unit -> string option = "stub_pthread_get_name"
 end
 
 module Group = struct

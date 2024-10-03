@@ -297,7 +297,11 @@ module Destination = struct
 
   let create_exporter () =
     enable_span_garbage_collector () ;
-    Xapi_stdext_threads.Threadext.create ~name:"trace_exporter"
+    Xapi_stdext_threads.Threadext.create
+      ~debug:(fun name pname ->
+        debug "Creating thread %s from parent %s" name pname
+      )
+      ~name:"trace_exporter"
       (fun () ->
         let signaled = ref false in
         while not !signaled do

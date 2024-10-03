@@ -143,9 +143,13 @@ let wait_timed_write fd timeout =
      )
      () *)
 
-let create ~name funct arg =
+let create ~debug ~name funct arg =
+  let pname =
+    match Tgroup.Pthread.get_name () with None -> "unknown" | Some s -> s
+  in
   Thread.create
     (fun arg ->
+      let () = debug name pname in
       let _ = Tgroup.Pthread.set_name name in
       funct arg
     )

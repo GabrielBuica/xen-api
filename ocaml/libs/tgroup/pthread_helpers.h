@@ -13,3 +13,5 @@
  */
 
 extern int pthread_set_name(const char *name);
+
+extern int pthread_get_name(char * name);

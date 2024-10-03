@@ -38,4 +38,9 @@ val wait_timed_read : Unix.file_descr -> float -> bool
 
 val wait_timed_write : Unix.file_descr -> float -> bool
 
-val create : name:string -> ('a -> 'b) -> 'a -> Thread.t
+val create :
+     debug:(string -> string -> unit)
+  -> name:string
+  -> ('a -> 'b)
+  -> 'a
+  -> Thread.t

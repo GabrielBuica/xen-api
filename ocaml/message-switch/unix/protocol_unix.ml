@@ -16,6 +16,10 @@
 
 open Message_switch_core.Protocol
 
+module D = Debug.Make (struct let name = __MODULE__ end)
+
+open D
+
 let with_lock m f =
   Mutex.lock m ;
   try
@@ -31,7 +35,11 @@ let thread_forever f v =
     | exception _ ->
         Thread.delay 1.0 ; (loop [@tailcall]) ()
   in
-  Xapi_stdext_threads.Threadext.create ~name:"msg-s-th-4ever" loop ()
+  Xapi_stdext_threads.Threadext.create
+    ~debug:(fun name pname ->
+      debug "Creating thread %s from parent %s" name pname
+    )
+    ~name:"msg-s-th-4ever" loop ()
 
 module IO = struct
   let whoami () =
@@ -502,7 +510,11 @@ module Server = struct
               List.iter
                 (fun (i, m) ->
                   let (_ : Thread.t) =
-                    Xapi_stdext_threads.Threadext.create ~name:"msg-s-lsn"
+                    Xapi_stdext_threads.Threadext.create
+                      ~debug:(fun name pname ->
+                        debug "Creating thread %s from parent %s" name pname
+                      )
+                      ~name:"msg-s-lsn"
                       (fun () ->
                         let response =
                           try process m.Message.payload

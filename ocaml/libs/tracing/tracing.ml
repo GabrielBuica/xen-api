@@ -512,7 +512,11 @@ module Spans = struct
       Atomic.set span_timeout timeout ;
       span_timeout_thread :=
         Some
-          (Xapi_stdext_threads.Threadext.create ~name:"tracing_gc"
+          (Xapi_stdext_threads.Threadext.create
+             ~debug:(fun name pname ->
+               debug "Creating thread %s from parent %s" name pname
+             )
+             ~name:"tracing_gc"
              (fun () ->
                while true do
                  debug "Tracing: Span garbage collector" ;

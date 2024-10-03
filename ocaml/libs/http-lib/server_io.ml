@@ -35,7 +35,11 @@ let handler_by_thread (h : handler) (s : Unix.file_descr)
     | _ ->
         "f.unknown"
   in
-  Xapi_stdext_threads.Threadext.create ~name
+  Xapi_stdext_threads.Threadext.create
+    ~debug:(fun name pname ->
+      debug "Creating thread %s from parent %s" name pname
+    )
+    ~name
     (fun () ->
       Fun.protect
         ~finally:(fun () -> Xapi_stdext_threads.Semaphore.release h.lock 1)
@@ -105,7 +109,11 @@ let server handler sock =
       | s ->
           "s." ^ s
     in
-    Xapi_stdext_threads.Threadext.create ~name
+    Xapi_stdext_threads.Threadext.create
+      ~debug:(fun name pname ->
+        debug "Creating thread %s from parent %s" name pname
+      )
+      ~name
       (fun () ->
         Debug.with_thread_named handler.name
           (fun () ->

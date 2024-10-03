@@ -146,7 +146,11 @@ let start server =
   Network_monitor_thread.start () ;
   Network_server.on_startup () ;
   let (_ : Thread.t) =
-    Xapi_stdext_threads.Threadext.create ~name:"xcp-s-neworkd"
+    Xapi_stdext_threads.Threadext.create
+      ~debug:(fun name pname ->
+        debug "Creating thread %s from parent %s" name pname
+      )
+      ~name:"xcp-s-neworkd"
       (fun () -> Xcp_service.serve_forever server)
       ()
   in

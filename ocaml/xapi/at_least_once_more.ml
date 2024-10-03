@@ -18,6 +18,10 @@
 
 let with_lock = Xapi_stdext_threads.Threadext.Mutex.execute
 
+module D = Debug.Make (struct let name = __MODULE__ end)
+
+open D
+
 (** Type of the function executed in the background *)
 type operation = unit -> unit
 
@@ -47,7 +51,11 @@ let again (x : manager) =
         x.in_progress <- true ;
         x.needs_doing_again <- false ;
         let (_ : Thread.t) =
-          Xapi_stdext_threads.Threadext.create ~name:"again"
+          Xapi_stdext_threads.Threadext.create
+            ~debug:(fun name pname ->
+              debug "Creating thread %s from parent %s" name pname
+            )
+            ~name:"again"
             (fun () ->
               (* Always do the operation immediately: thread is only created when work needs doing *)
               x.f () ;

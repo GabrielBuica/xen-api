@@ -1,19 +1,17 @@
 (library
-  (name message_switch_unix)
-  (public_name message-switch-unix)
-  (modules
-    protocol_unix
-    protocol_unix_scheduler
-  )
-  (libraries
-    cohttp
-    message-switch-core
-    rpclib.core
-    rpclib.json
-    threads.posix
-    xapi-stdext-threads
-    xapi-stdext-unix
-  )
-  (preprocess (per_module ((pps ppx_deriving_rpc) Protocol_unix_scheduler)))
-)
-
+ (name message_switch_unix)
+ (public_name message-switch-unix)
+ (modules protocol_unix protocol_unix_scheduler)
+ (libraries
+  cohttp
+  message-switch-core
+  rpclib.core
+  rpclib.json
+  threads.posix
+  xapi-log
+  xapi-stdext-threads
+  xapi-stdext-unix)
+ (preprocess
+  (per_module
+   ((pps ppx_deriving_rpc)
+    Protocol_unix_scheduler))))

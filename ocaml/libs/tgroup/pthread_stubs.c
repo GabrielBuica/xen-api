@@ -26,6 +26,8 @@
 
 #include "pthread_helpers.h"
 
+#define NAMELEN 16
+
 CAMLprim value stub_pthread_set_name(value name){
   CAMLparam1(name);
   int rc;
@@ -35,4 +37,20 @@ CAMLprim value stub_pthread_set_name(value name){
   caml_leave_blocking_section();
 
   CAMLreturn(Val_int(rc));
+}
+
+CAMLprim value stub_pthread_get_name(value unit){
+  CAMLparam1(unit);
+  CAMLlocal1(result);
+  char thread_name[NAMELEN];
+  
+  caml_enter_blocking_section();
+  int rc = pthread_get_name(thread_name);
+  caml_leave_blocking_section();
+
+  if (rc != 0)
+    CAMLreturn(Val_none);
+
+  result = caml_copy_string(thread_name);
+  CAMLreturn(caml_alloc_some(result));
 }
