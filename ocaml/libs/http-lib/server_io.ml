@@ -32,8 +32,8 @@ let handler_by_thread (h : handler) (s : Unix.file_descr)
     match h.name with
     | s when String.equal s "/var/lib/xcp/xapi" ->
         "f.xcp/xapi"
-    | _ ->
-        "f.unknown"
+    | s ->
+        "f." ^ s
   in
   Xapi_stdext_threads.Threadext.create
     ~debug:(fun name pname ->

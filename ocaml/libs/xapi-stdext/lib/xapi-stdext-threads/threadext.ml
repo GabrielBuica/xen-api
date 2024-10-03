@@ -147,9 +147,11 @@ let create ~debug ~name funct arg =
   let pname =
     match Tgroup.Pthread.get_name () with None -> "unknown" | Some s -> s
   in
+  let ptid = () |> Thread.self |> Thread.id |> string_of_int in
   Thread.create
     (fun arg ->
-      let () = debug name pname in
+      let tid = () |> Thread.self |> Thread.id |> string_of_int in
+      let () = debug (name ^ "." ^ tid) (pname ^ "." ^ ptid) in
       let _ = Tgroup.Pthread.set_name name in
       funct arg
     )
