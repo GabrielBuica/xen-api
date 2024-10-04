@@ -263,6 +263,15 @@ module Span = struct
 
   let get_context t = t.context
 
+  let add_thread_info attributes =
+    let tid = Thread.self () |> Thread.id |> string_of_int in
+    let t_name =
+      match Tgroup.Pthread.get_name () with None -> "unknown" | Some s -> s
+    in
+    attributes
+    |> Attributes.add "ocaml.tid" tid
+    |> Attributes.add "pthread.name" t_name
+
   let start ?(attributes = Attributes.empty) ~name ~parent ~span_kind () =
     let trace_id =
       match parent with
@@ -279,6 +288,7 @@ module Span = struct
     let status : Status.t = {status_code= Status.Unset; _description= None} in
     let links = [] in
     let events = [] in
+    let attributes = attributes |> add_thread_info in
     {
       context
     ; span_kind

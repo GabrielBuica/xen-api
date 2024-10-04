@@ -27,7 +27,7 @@ let with_lock m f =
     Mutex.unlock m ; r
   with e -> Mutex.unlock m ; raise e
 
-let thread_forever f v =
+let thread_forever ~name f v =
   let rec loop () =
     match f v with
     | (_ : ('a, 'b) result) ->
@@ -39,7 +39,7 @@ let thread_forever f v =
     ~debug:(fun name pname ->
       debug "Creating thread %s from parent %s" name pname
     )
-    ~name:"msg-s-th-4ever" loop ()
+    ~name:("msg-s" ^ name) loop ()
 
 module IO = struct
   let whoami () =
@@ -333,7 +333,7 @@ module Client = struct
             t.events_conn <- events_conn ;
             loop from
       in
-      thread_forever loop None
+      thread_forever ~name:("t:" ^ token) loop None
     in
     Ok t
 
@@ -555,7 +555,7 @@ module Server = struct
               loop connections (Some transfer.Out.next)
         )
     in
-    let (_ : Thread.t) = thread_forever (loop connections) None in
+    let (_ : Thread.t) = thread_forever ~name (loop connections) None in
     Ok ()
 
   let listen_p = listen
