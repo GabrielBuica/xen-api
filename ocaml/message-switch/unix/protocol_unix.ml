@@ -514,7 +514,7 @@ module Server = struct
                       ~debug:(fun name pname ->
                         debug "Creating thread %s from parent %s" name pname
                       )
-                      ~name:"msg-s-lsn"
+                      ~name:("l." ^ name)
                       (fun () ->
                         let response =
                           try process m.Message.payload
