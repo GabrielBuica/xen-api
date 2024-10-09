@@ -37,6 +37,18 @@ module Pthread = struct
     match c_set_name tname with 0 -> Some tname | _ -> None
 
   external get_name : unit -> string option = "stub_pthread_get_name"
+
+  let get_cgroup () =
+    let lines = Xapi_stdext_unix.Unixext.read_lines ~path:"/proc/self/cgroup" in
+    lines
+    |> List.find_map (fun elt ->
+           match String.split_on_char ':' elt with
+           | [_; "cpu,cpuacct"; group] ->
+               Some group
+           | _ ->
+               None
+       )
+    |> Option.value ~default:(String.concat "\n" lines)
 end
 
 module Group = struct

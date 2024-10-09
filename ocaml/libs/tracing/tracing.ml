@@ -265,12 +265,19 @@ module Span = struct
 
   let add_thread_info attributes =
     let tid = Thread.self () |> Thread.id |> string_of_int in
+
     let t_name =
       match Tgroup.Pthread.get_name () with None -> "unknown" | Some s -> s
     in
+
+    let cgroup =
+      try Tgroup.Pthread.get_cgroup () with _ -> Printexc.get_backtrace ()
+    in
+
     attributes
     |> Attributes.add "ocaml.tid" tid
     |> Attributes.add "pthread.name" t_name
+    |> Attributes.add "cgroup" cgroup
 
   let start ?(attributes = Attributes.empty) ~name ~parent ~span_kind () =
     let trace_id =
