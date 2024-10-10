@@ -65,9 +65,9 @@ let xmlrpc ?frame ?version ?keep_alive ?task_id ?cookie ?length ?auth
   let baggage = Option.map snd trace_context in
   let headers = Option.map (fun x -> [(Http.Hdr.task_id, x)]) task_id in
   Http.Request.make ~user_agent ?frame ?version ?keep_alive ?cookie ?headers
-    ?length ?auth ?subtask_of ?query ?body ?originator ?traceparent Http.Post path
-  |> fun req ->
-  Option.fold ~none:req ~some:(Fun.flip Http.Request.with_baggage req) baggage
+    ?length ?auth ?subtask_of ?query ?body ?originator ?traceparent Http.Post
+    path
+  |> Http.Request.with_baggage_maybe baggage
 
 (** Thrown when ECONNRESET is caught which suggests the remote crashed or restarted *)
 exception Connection_reset
