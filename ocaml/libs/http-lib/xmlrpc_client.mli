@@ -72,6 +72,7 @@ val xmlrpc :
   -> ?subtask_of:string
   -> ?query:(string * string) list
   -> ?body:string
+  -> ?originator:string
   -> ?tracing:Tracing.Span.t option
   -> string
   -> Http.Request.t

@@ -12,7 +12,7 @@ module Group : sig
   type t
 
   module Originator : sig
-    type t = Internal_Host_SM | EXTERNAL | Internal_Server
+    type t = Internal_Host_SM | EXTERNAL | Internal_Server | Internal_Cli
 
     val of_string : string -> t
 

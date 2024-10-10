@@ -49,7 +49,7 @@ let connect ?session_id ?task_id ?subtask_of path =
     ?subtask_of Http.Connect path
 
 let xmlrpc ?frame ?version ?keep_alive ?task_id ?cookie ?length ?auth
-    ?subtask_of ?query ?body ?(tracing = None) path =
+    ?subtask_of ?query ?body ?originator ?(tracing = None) path =
   let traceparent =
     let open Tracing in
     Option.map
@@ -58,7 +58,8 @@ let xmlrpc ?frame ?version ?keep_alive ?task_id ?cookie ?length ?auth
   in
   let headers = Option.map (fun x -> [(Http.Hdr.task_id, x)]) task_id in
   Http.Request.make ~user_agent ?frame ?version ?keep_alive ?cookie ?headers
-    ?length ?auth ?subtask_of ?query ?body ?traceparent Http.Post path
+    ?length ?auth ?subtask_of ?query ?body ?originator ?traceparent Http.Post
+    path
 
 (** Thrown when ECONNRESET is caught which suggests the remote crashed or restarted *)
 exception Connection_reset

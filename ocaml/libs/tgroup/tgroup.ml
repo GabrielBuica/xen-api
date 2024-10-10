@@ -92,14 +92,29 @@ module Group = struct
     let cpu_shares = "65536"
   end
 
+  module Cli = struct
+    type t
+
+    let name = "cli"
+
+    let cpu_shares = "128"
+  end
+
   type _ group =
     | Internal_Host_SM : (Internal.t * Host.t * SM.t) group
     | EXTERNAL : External.t group
     | Internal_Server : (Internal.t * Server.t) group
+    | Internal_Cli : (Internal.t * Cli.t) group
 
   type t = Group : 'a group -> t
 
-  let all = [Group Internal_Host_SM; Group EXTERNAL; Group Internal_Server]
+  let all =
+    [
+      Group Internal_Host_SM
+    ; Group EXTERNAL
+    ; Group Internal_Server
+    ; Group Internal_Cli
+    ]
 
   let to_cgroup : type a. a group -> string = function
     | Internal_Host_SM ->
@@ -108,9 +123,11 @@ module Group = struct
         External.name
     | Internal_Server ->
         Internal.name // Server.name
+    | Internal_Cli ->
+        Internal.name // Cli.name
 
   module Originator = struct
-    type t = Internal_Host_SM | EXTERNAL | Internal_Server
+    type t = Internal_Host_SM | EXTERNAL | Internal_Server | Internal_Cli
 
     let of_string = function
       | s
@@ -118,6 +135,11 @@ module Group = struct
                (String.lowercase_ascii SM.name)
                (String.lowercase_ascii s) ->
           Internal_Host_SM
+      | s
+        when String.equal
+               (String.lowercase_ascii Cli.name)
+               (String.lowercase_ascii s) ->
+          Internal_Cli
       | s
         when String.equal
                (String.lowercase_ascii External.name)
@@ -131,6 +153,8 @@ module Group = struct
           SM.name
       | Internal_Server ->
           Server.name
+      | Internal_Cli ->
+          Cli.name
       | EXTERNAL ->
           External.name
   end
@@ -140,6 +164,8 @@ module Group = struct
         Group Internal_Host_SM
     | Originator.Internal_Server ->
         Group Internal_Server
+    | Originator.Internal_Cli ->
+        Group Internal_Cli
     | Originator.EXTERNAL ->
         Group EXTERNAL
 
@@ -150,6 +176,8 @@ module Group = struct
         Originator.EXTERNAL
     | Group Internal_Server ->
         Originator.Internal_Server
+    | Group Internal_Cli ->
+        Originator.Internal_Cli
 end
 
 module Cgroup = struct
@@ -196,6 +224,8 @@ module Cgroup = struct
           attach_task (Group Internal_Host_SM) tid
       | Originator.Internal_Server ->
           attach_task (Group Internal_Server) tid
+      | Originator.Internal_Cli ->
+          attach_task (Group Internal_Cli) tid
       | Originator.EXTERNAL ->
           attach_task (Group EXTERNAL) tid
     )
@@ -217,6 +247,8 @@ module Priority = struct
     | Group.Originator.Internal_Server ->
         chrt ~_policy:SCHED_RR ~_tid:(Pthread.self ()) 80
     | Group.Originator.EXTERNAL ->
+        ()
+    | Group.Originator.Internal_Cli ->
         ()
 end
 
