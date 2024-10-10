@@ -79,7 +79,8 @@ let forward args s session =
     Printf.sprintf "xapi/%s" Datamodel_common.api_version_string
   in
   let request =
-    Http.Request.make ~version:"1.0" ~user_agent ~body Http.Post "/cli"
+    Http.Request.make ~version:"1.0" ~user_agent ~originator:"cli" ~body
+      Http.Post "/cli"
   in
   with_transport transport (fun ms ->
       Unixext.really_write_string ms (Http.Request.to_wire_string request) ;
