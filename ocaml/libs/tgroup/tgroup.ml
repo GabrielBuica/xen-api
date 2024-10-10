@@ -159,7 +159,7 @@ module Cgroup = struct
     in
     Xapi_stdext_pervasives.Pervasiveext.finally
       (fun () ->
-        let buf = tid ^ "\n" in
+        let buf = "0\n" in
         let len = String.length buf in
         if Unix.write fd (Bytes.unsafe_of_string buf) 0 len <> len then ()
         (* debug "tid_write %s > %s failed" tid filename *)
