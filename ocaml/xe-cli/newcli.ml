@@ -357,7 +357,7 @@ let with_open_tcp server f =
     Unixfd.with_open_connection ~loc:__LOC__ addr @@ fun ufd ->
     Unixfd.with_channels ufd f
 
-let with_open_channels f =
+let with_open_channels ?(s = "xapi") f =
   let wrap chs =
     try Ok (f chs) with e -> Backtrace.is_important e ; Error e
   in
@@ -366,7 +366,7 @@ let with_open_channels f =
       try
         let open Safe_resources in
         Unixfd.with_open_connection
-          (Unix.ADDR_UNIX (Filename.concat "/var/lib/xcp" "xapi"))
+          (Unix.ADDR_UNIX (Filename.concat "/var/lib/xcp" s))
           ~loc:__LOC__
         @@ fun chs -> Unixfd.with_channels chs wrap
       with _ -> with_open_tcp !xapiserver wrap
@@ -815,6 +815,7 @@ let main () =
           args @ ["username=" ^ !xapiuname; "password=" ^ !xapipword]
         in
         let args = String.concat "\n" args in
+        Printf.printf "Start: %s End." args ;
         Printf.fprintf oc "User-agent: xe-cli/Unix/%d.%d\r\n" major minor ;
         Option.iter (Printf.fprintf oc "traceparent: %s\r\n") traceparent ;
         Printf.fprintf oc "originator: cli\r\n" ;
