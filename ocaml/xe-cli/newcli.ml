@@ -809,13 +809,21 @@ let main () =
       if args = [] then
         raise Usage
       else
-        with_open_channels @@ fun (ic, oc) ->
+        let s =
+          match args with
+          | cmd :: [] when String.equal cmd "vm-list" ->
+              Printf.printf "Use /var/lib/xcp/low" ;
+              "low"
+          | _ ->
+              Printf.printf "Use /var/lib/xcp/xapi" ;
+              "xapi"
+        in
+        with_open_channels ~s @@ fun (ic, oc) ->
         Printf.fprintf oc "POST /cli HTTP/1.0\r\n" ;
         let args =
           args @ ["username=" ^ !xapiuname; "password=" ^ !xapipword]
         in
         let args = String.concat "\n" args in
-        Printf.printf "Start: %s End." args ;
         Printf.fprintf oc "User-agent: xe-cli/Unix/%d.%d\r\n" major minor ;
         Option.iter (Printf.fprintf oc "traceparent: %s\r\n") traceparent ;
         Printf.fprintf oc "originator: cli\r\n" ;
