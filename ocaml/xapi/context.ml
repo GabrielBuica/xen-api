@@ -94,6 +94,8 @@ let is_unix_socket s =
   match Unix.getsockname s with
   | Unix.ADDR_UNIX path when path = Xapi_globs.unix_domain_socket ->
       true
+  | Unix.ADDR_UNIX path when path = Filename.concat "/var/lib/xcp" "low" ->
+      true
   | Unix.ADDR_INET _ | Unix.ADDR_UNIX _ ->
       false
 
@@ -110,6 +112,8 @@ let preauth ~__context =
   | Http (_, s) -> (
     match Unix.getsockname s with
     | Unix.ADDR_UNIX path when path = Xapi_globs.unix_domain_socket ->
+        Some `root
+    | Unix.ADDR_UNIX path when path = Filename.concat "/var/lib/xcp" "low" ->
         Some `root
     | Unix.ADDR_UNIX path when path = Xapi_globs.unix_domain_socket_clientcert
       ->

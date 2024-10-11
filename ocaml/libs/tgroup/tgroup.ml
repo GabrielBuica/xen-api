@@ -68,6 +68,8 @@ module Group = struct
     type t
 
     let name = "internal"
+
+    let cpu_shares = "65536"
   end
 
   module External = struct
@@ -212,7 +214,10 @@ module Cgroup = struct
     |> List.iter (fun dir -> Xapi_stdext_unix.Unixext.mkdir_rec dir 0o755) ;
     set_cpu_shares (Group EXTERNAL) Group.External.cpu_shares ;
     set_cpu_shares (Group Internal_Host_SM) Group.SM.cpu_shares ;
-    set_cpu_shares (Group Internal_Server) Group.Server.cpu_shares
+    set_cpu_shares (Group Internal_Server) Group.Server.cpu_shares ;
+    write_to_file
+      (requests // Internal.name // "cpu.shares")
+      Group.Internal.cpu_shares
 
   let set_cur_cgroup ~originator =
     match Pthread.self () with

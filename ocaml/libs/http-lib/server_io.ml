@@ -102,12 +102,14 @@ let server handler sock =
       warn "Attempt to double-shutdown Server_io.server detected; ignoring"
   in
   let thread =
-    let name =
+    let name, originator =
       match handler.name with
+      | s when String.equal s "/var/lib/xcp/low" ->
+          ("s.xcp/low", Tgroup.Group.Originator.EXTERNAL)
       | s when String.equal s "/var/lib/xcp/xapi" ->
-          "s.xcp/xapi"
+          ("s.xcp/xapi", Tgroup.Group.Originator.Internal_Server)
       | s ->
-          "s." ^ s
+          ("s." ^ s, Tgroup.Group.Originator.Internal_Server)
     in
     Xapi_stdext_threads.Threadext.create
       ~debug:(fun name pname ->
@@ -118,7 +120,7 @@ let server handler sock =
         Debug.with_thread_named handler.name
           (fun () ->
             try
-              Tgroup.(of_originator Group.Originator.Internal_Server) ;
+              Tgroup.of_originator originator ;
               establish_server ~signal_fds:[status_out] handler_by_thread
                 handler sock
             with PleaseClose -> debug "Server thread exiting"

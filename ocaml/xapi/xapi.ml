@@ -1105,7 +1105,9 @@ let server_init () =
             )
           ; ( "Listening unix socket"
             , []
-            , fun () -> listen_unix_socket Xapi_globs.unix_domain_socket
+            , fun () ->
+                listen_unix_socket Xapi_globs.unix_domain_socket ;
+                listen_unix_socket (Filename.concat "/var/lib/xcp" "low")
             )
           ; ( "Metadata VDI liveness monitor"
             , [Startup.OnlyMaster; Startup.OnThread]
