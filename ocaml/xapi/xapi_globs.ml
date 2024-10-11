@@ -296,10 +296,10 @@ let max_tasks = 200
 let max_sessions = max_tasks * 2
 
 (* For sessions with specified originator, their session limits are counted independently. *)
-let max_sessions_per_originator = 500
+let max_sessions_per_originator = 5000
 
 (* For sessions with specifiied user name (non-root), their session limit are counted independently *)
-let max_sessions_per_user_name = 500
+let max_sessions_per_user_name = 5000
 
 (* Place where database XML backups are kept *)
 let backup_db_xml = Filename.concat "/var/lib/xcp" "state-backup.xml"
