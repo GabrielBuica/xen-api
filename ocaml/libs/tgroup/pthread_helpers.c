@@ -32,3 +32,12 @@ extern int pthread_get_name(char* thread_name){
 
   return pthread_getname_np(thread, thread_name, NAMELEN);
 }
+
+extern int pthread_set_schedparam(const int policy, const struct sched_param *param){
+  pthread_t thread;
+
+  thread = pthread_self();
+
+  return pthread_setschedparam(thread, policy, param);
+
+}

@@ -54,3 +54,17 @@ CAMLprim value stub_pthread_get_name(value unit){
   result = caml_copy_string(thread_name);
   CAMLreturn(caml_alloc_some(result));
 }
+
+CAMLprim value stub_pthread_set_schedparam(value policy){
+  CAMLparam1(policy);
+
+  caml_enter_blocking_section();
+  int _policy = Int_val(policy);
+  struct sched_param _priority = {
+    0 // must be 0 for SCHED_OTHER, SCHED_IDLE, SCHED_BATCH
+  };
+  int rc = pthread_set_schedparam(_policy, &_priority);
+  caml_leave_blocking_section();
+
+  CAMLreturn(Val_int(rc));
+}

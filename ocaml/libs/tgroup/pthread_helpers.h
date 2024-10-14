@@ -15,3 +15,5 @@
 extern int pthread_set_name(const char *name);
 
 extern int pthread_get_name(char * name);
+
+extern int pthread_set_schedparam(int policy, const struct sched_param *param);

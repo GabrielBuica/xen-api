@@ -238,6 +238,44 @@ module Cgroup = struct
   let of_originator originator = set_cur_cgroup ~originator
 end
 
+module Policy = struct
+  let sched_other = 0
+
+  let sched_batch = 3
+
+  let sched_idle = 5
+
+  external _set_policy : int -> int = "stub_pthread_set_schedparam"
+
+  type t = SCHED_OTHER | SCHED_BATCH | SCHED_IDLE
+
+  let str_of = function
+    | SCHED_OTHER ->
+        "SCHED_OTHER"
+    | SCHED_BATCH ->
+        "SCHED_BATCH"
+    | SCHED_IDLE ->
+        "SCHED_IDLE"
+
+  let set_policy p =
+    let p_int =
+      match p with
+      | SCHED_OTHER ->
+          sched_other
+      | SCHED_BATCH ->
+          sched_batch
+      | SCHED_IDLE ->
+          sched_idle
+    in
+    _set_policy p_int
+
+  let set_policy_of_originator = function
+    | Group.Originator.EXTERNAL ->
+        set_policy SCHED_IDLE
+    | _ ->
+        set_policy SCHED_OTHER
+end
+
 module Priority = struct
   (* type policy_t = SCHED_OTHER | SCHED_FIFO | SCHED_RR *)
   type policy_t = SCHED_RR
@@ -267,6 +305,7 @@ let empty_state = {_originator= None; _tid= None; _cgroup_dir= None}
 
 let of_originator originator =
   Cgroup.of_originator originator ;
+  let _ = Policy.set_policy_of_originator originator in
   Priority.of_originator originator
 
 let of_req_originator originator =
