@@ -684,35 +684,6 @@ module Request = struct
         f originator
       )
       req
-
-  (* let traceparent_of req = *)
-  (*   let open Tracing in *)
-  (*   let ( let* ) = Option.bind in *)
-  (*   let* traceparent = req.traceparent in *)
-  (*   let* span_context = SpanContext.of_traceparent traceparent in *)
-  (*   let span = Tracer.span_of_span_context span_context req.uri in *)
-  (*   Some span *)
-
-  (* let with_tracing ?attributes ~name req f = *)
-  (*   let open Tracing in *)
-  (*   let parent = traceparent_of req in *)
-  (*   with_child_trace ?attributes parent ~name (fun (span : Span.t option) -> *)
-  (*       match span with *)
-  (*       | Some span -> *)
-  (*           let traceparent = *)
-  (*             Some (span |> Span.get_context |> SpanContext.to_traceparent) *)
-  (*           in *)
-  (*           let req = {req with traceparent} in *)
-  (*           f req *)
-  (*       | None -> *)
-  (*           f req *)
-  (*   ) *)
-
-  let traceparent_of _ = None
-
-  let with_tracing ?attributes ~name =
-    ignore (attributes, name) ;
-    Fun.flip ( @@ )
 end
 
 module Response = struct
