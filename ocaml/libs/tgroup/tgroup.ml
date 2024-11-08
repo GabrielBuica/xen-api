@@ -29,12 +29,24 @@ module Group = struct
     type t
 
     let name = "external"
-  end
 
-  module Host = struct
-    type t
+    module Intrapool = struct
+      type t
 
-    let name = "host"
+      let name = "intrapool"
+    end
+
+    module Authenticated = struct
+      type t = string
+
+      let name = "authenticated"
+    end
+
+    module Unauthenticated = struct
+      type t
+
+      let name = "unauthenticated"
+    end
   end
 
   module SM = struct
@@ -43,73 +55,155 @@ module Group = struct
     let name = "SM"
   end
 
+  module CLI = struct
+    type t
+
+    let name = "cli"
+  end
+
+  module Identity = struct
+    type t = string
+
+    let to_string s : string = s
+  end
+
   type _ group =
-    | Internal_Host_SM : (Internal.t * Host.t * SM.t) group
-    | EXTERNAL : External.t group
+    | Internal_SM : (Internal.t * SM.t) group
+    | Internal_CLI : (Internal.t * CLI.t) group
+    | External_Intrapool : (External.t * External.Intrapool.t) group
+    | External_Authenticated :
+        Identity.t
+        -> (External.t * External.Authenticated.t) group
+    | External_Unautheticated : (External.t * External.Unauthenticated.t) group
 
   type t = Group : 'a group -> t
 
-  let all = [Group Internal_Host_SM; Group EXTERNAL]
+  let all =
+    [
+      Group Internal_SM
+    ; Group Internal_CLI
+    ; Group External_Intrapool
+    ; Group (External_Authenticated "root")
+    ; Group External_Unautheticated
+    ]
+
+  module Kind = struct
+    type t = Intrapool | Authenticated of Identity.t | Unautheticated
+
+    let to_string = function
+      | Intrapool ->
+          External.Intrapool.name
+      | Authenticated identity ->
+          External.Authenticated.name // Identity.to_string identity
+      | Unautheticated ->
+          External.Unauthenticated.name
+  end
 
   module Originator = struct
-    type t = Internal_Host_SM | EXTERNAL
+    type t = Internal_SM | Internal_CLI | External
 
     let of_string = function
       | s
         when String.equal
                (String.lowercase_ascii SM.name)
                (String.lowercase_ascii s) ->
-          Internal_Host_SM
+          Internal_SM
       | s
         when String.equal
-               (String.lowercase_ascii External.name)
+               (String.lowercase_ascii CLI.name)
                (String.lowercase_ascii s) ->
-          EXTERNAL
+          Internal_CLI
       | _ ->
-          EXTERNAL
+          External
 
     let to_string = function
-      | Internal_Host_SM ->
+      | Internal_SM ->
           SM.name
-      | EXTERNAL ->
+      | Internal_CLI ->
+          CLI.name
+      | External ->
           External.name
   end
 
   module Creator = struct
-    type t = {
-        user: string option
-      ; endpoint: string option
-      ; originator: Originator.t
-    }
+    type t = {endpoint: string; kind: Kind.t; originator: Originator.t}
 
-    let make ?user ?endpoint originator = {originator; user; endpoint}
+    let make ?user ?subject ?(endpoint = External.name) originator =
+      let originator = Originator.of_string originator in
+      let endpoint =
+        match originator with
+        | Internal_CLI | Internal_SM ->
+            Internal.name
+        | External ->
+            External.name
+      in
+      let kind =
+        match subject with
+        | None ->
+            Kind.Unautheticated
+        | Some sid ->
+            Kind.Authenticated sid
+      in
+      {endpoint; kind; originator}
+
+    let default_creator =
+      {
+        endpoint= External.name
+      ; kind= Kind.Authenticated "root"
+      ; originator= Originator.External
+      }
 
     let to_string c =
-      Printf.sprintf "Creator -> user:%s endpoint:%s originator:%s"
-        (Option.value c.user ~default:"")
-        (Option.value c.endpoint ~default:"")
+      Printf.sprintf "Creator -> kind:%s endpoint:%s originator:%s"
+        (Kind.to_string c.kind) c.endpoint
         (Originator.to_string c.originator)
   end
 
   let of_originator = function
-    | Originator.Internal_Host_SM ->
-        Group Internal_Host_SM
-    | Originator.EXTERNAL ->
-        Group EXTERNAL
+    | Originator.Internal_SM ->
+        Group Internal_SM
+    | Originator.Internal_CLI ->
+        Group Internal_CLI
+    | Originator.External ->
+        Group External_Unautheticated
 
   let get_originator = function
-    | Group Internal_Host_SM ->
-        Originator.Internal_Host_SM
-    | Group EXTERNAL ->
-        Originator.EXTERNAL
+    | Group Internal_SM ->
+        Originator.Internal_SM
+    | Group Internal_CLI ->
+        Originator.Internal_CLI
+    | _ ->
+        Originator.External
 
-  let of_creator creator = of_originator creator.Creator.originator
+  let of_creator creator =
+    match creator.Creator.originator with
+    | Internal_SM ->
+        Group Internal_SM
+    | Internal_CLI ->
+        Group Internal_CLI
+    | External -> (
+      match creator.Creator.kind with
+      | Authenticated identity ->
+          Group (External_Authenticated identity)
+      | Intrapool ->
+          Group External_Intrapool
+      | Unautheticated ->
+          Group External_Unautheticated
+    )
 
   let to_cgroup : type a. a group -> string = function
-    | Internal_Host_SM ->
-        Internal.name // Host.name // SM.name
-    | EXTERNAL ->
+    | Internal_SM ->
+        Internal.name // SM.name
+    | Internal_CLI ->
+        Internal.name // CLI.name
+    | External_Authenticated identity ->
         External.name
+        // External.Authenticated.name
+        // Identity.to_string identity
+    | External_Intrapool ->
+        External.name // External.Intrapool.name
+    | External_Unautheticated ->
+        External.name // External.Unauthenticated.name
 end
 
 module Cgroup = struct
@@ -123,6 +217,10 @@ module Cgroup = struct
         Option.map
           (fun dir -> dir // Group.to_cgroup group)
           (Atomic.get cgroup_dir)
+
+  let with_dir dir f arg =
+    Xapi_stdext_unix.Unixext.mkdir_rec dir 0o755 ;
+    f arg
 
   let write_cur_tid_to_cgroup_file filename =
     try
@@ -146,39 +244,32 @@ module Cgroup = struct
     Option.iter
       (fun dir ->
         let tasks_file = dir // "tasks" in
-        write_cur_tid_to_cgroup_file tasks_file
+        with_dir dir write_cur_tid_to_cgroup_file tasks_file
       )
       (dir_of group)
 
-  let set_cur_cgroup ~originator =
-    match originator with
-    | Group.Originator.Internal_Host_SM ->
-        attach_task (Group Internal_Host_SM)
-    | Group.Originator.EXTERNAL ->
-        attach_task (Group EXTERNAL)
+  let set_cur_cgroup ~creator = attach_task (Group.of_creator creator)
 
-  let set_cgroup creator =
-    set_cur_cgroup ~originator:creator.Group.Creator.originator
+  let set_cgroup creator = set_cur_cgroup ~creator
 
   let init dir =
     let () = Atomic.set cgroup_dir (Some dir) in
     Group.all
     |> List.filter_map dir_of
-    |> List.iter (fun dir -> Xapi_stdext_unix.Unixext.mkdir_rec dir 0o755) ;
-    set_cur_cgroup ~originator:Group.Originator.EXTERNAL
+    |> List.iter (fun dir -> with_dir dir debug "created cgroup for: %s" dir) ;
+    set_cur_cgroup ~creator:Group.Creator.default_creator
 end
-
-let of_originator originator =
-  originator |> Group.Creator.make |> Cgroup.set_cgroup
 
 let of_req_originator originator =
   Option.iter
     (fun _ ->
       try
         originator
-        |> Option.value ~default:Group.Originator.(to_string EXTERNAL)
-        |> Group.Originator.of_string
-        |> of_originator
+        |> Option.value ~default:Group.External.name
+        |> Group.Creator.make
+        |> Cgroup.set_cgroup
       with _ -> ()
     )
     (Atomic.get Cgroup.cgroup_dir)
+
+let of_creator creator = creator |> Cgroup.set_cgroup

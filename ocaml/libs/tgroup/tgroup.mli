@@ -22,7 +22,7 @@ module Group : sig
   (** Generic representation of different xapi threads originators. *)
   module Originator : sig
     (** Type that represents different originators of xapi threads. *)
-    type t = Internal_Host_SM | EXTERNAL
+    type t = Internal_SM | Internal_CLI | External
 
     val of_string : string -> t
     (** [of_string s] creates an originator from a string [s].
@@ -38,7 +38,8 @@ module Group : sig
     (** Abstract type that represents different creators of xapi threads.*)
     type t
 
-    val make : ?user:string -> ?endpoint:string -> Originator.t -> t
+    val make :
+      ?user:string -> ?subject:string -> ?endpoint:string -> string -> t
     (** [make o] creates a creator type based on a given originator [o].*)
 
     val to_string : t -> string
@@ -72,6 +73,8 @@ module Cgroup : sig
   (** [set_cgroup c] sets the current xapi thread in a cgroup based on the
       creator [c].*)
 end
+
+val of_creator : Group.Creator.t -> unit
 
 val of_req_originator : string option -> unit
 (** [of_req_originator o] same as [of_originator] but it classifies based on the

@@ -820,6 +820,7 @@ let main () =
         Option.iter
           (Printf.fprintf oc "baggage: %s\r\n")
           (Sys.getenv_opt "BAGGAGE") ;
+        Printf.fprintf oc "originator: cli\r\n" ;
         Printf.fprintf oc "content-length: %d\r\n\r\n" (String.length args) ;
         Printf.fprintf oc "%s" args ;
         flush_all () ;
