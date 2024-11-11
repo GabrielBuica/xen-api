@@ -881,6 +881,7 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
   | Some `root ->
       (* in this case, the context origin of this login request is a unix socket bound locally to a filename *)
       (* we trust requests from local unix filename sockets, so no need to authenticate them before login *)
+      Tgroup.of_creator (Tgroup.Group.Creator.make ~subject:"root" "") ;
       login_no_password_common ~__context ~uname:(Some uname) ~originator
         ~host:(Helpers.get_localhost ~__context)
         ~pool:false ~is_local_superuser:true ~subject:Ref.null ~auth_user_sid:""
@@ -929,6 +930,7 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
           do_local_auth uname pwd ;
           debug "Success: local auth, user %s from %s" uname
             (Context.get_origin __context) ;
+          Tgroup.of_creator (Tgroup.Group.Creator.make ~subject:"root" "") ;
           login_no_password_common ~__context ~uname:(Some uname) ~originator
             ~host:(Helpers.get_localhost ~__context)
             ~pool:false ~is_local_superuser:true ~subject:Ref.null
@@ -1224,6 +1226,8 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
                 Caching.memoize ~__context uname pwd
                   ~slow_path:query_external_auth
               in
+              Tgroup.of_creator
+                (Tgroup.Group.Creator.make ~subject:subject_identifier "") ;
               login_no_password_common ~__context ~uname:(Some uname)
                 ~originator
                 ~host:(Helpers.get_localhost ~__context)

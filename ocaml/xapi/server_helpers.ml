@@ -141,6 +141,15 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
       Context.of_http_req ?session_id ~internal_async_subtask ~generate_task_for
         ~supports_async ~label ~http_req ~fd ()
     in
+    Option.iter
+      (fun session_id ->
+        let subject =
+          Db.Session.get_auth_user_sid ~__context ~self:session_id
+        in
+        Tgroup.of_creator
+          (Tgroup.Group.Creator.make ?_user:http_req.user_agent ~subject "")
+      )
+      session_id ;
     let sync () =
       let need_complete = not (Context.forwarded_task __context) in
       exec_with_context ~__context ~need_complete ~called_async
