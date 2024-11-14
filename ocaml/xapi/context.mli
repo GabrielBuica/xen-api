@@ -115,6 +115,12 @@ val get_http_other_config : Http.Request.t -> (string * string) list
 
 val __get_task_name : (__context:t -> API.ref_task -> string) ref
 
+val __get_user_name : (__context:t -> API.ref_session -> string) ref
+
+val __get_user_sid : (__context:t -> API.ref_session -> string) ref
+
+val __get_session_originator : (__context:t -> API.ref_session -> string) ref
+
 val __destroy_task : (__context:t -> API.ref_task -> unit) ref
 
 val __make_task :

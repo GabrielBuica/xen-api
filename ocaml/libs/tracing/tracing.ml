@@ -86,6 +86,35 @@ end
 
 type endpoint = Bugtool | Url of Uri.t
 
+module Pthread = struct
+  type t = string option
+
+  let self () : t =
+    let unix_pid_tid = Unix.readlink "/proc/thread-self" in
+    match String.split_on_char '/' unix_pid_tid with
+    | [_; _; tid] ->
+        Some tid
+    | _ ->
+        (* debug "thread-self: can't parse: %s" unix_pid_tid ; *)
+        None
+
+  let get_cgroup () =
+    let self = match self () with Some s -> s | None -> "self" in
+    let lines =
+      Xapi_stdext_unix.Unixext.read_lines
+        ~path:(Printf.sprintf "/proc/%s/cgroup" self)
+    in
+    lines
+    |> List.find_map (fun elt ->
+           match String.split_on_char ':' elt with
+           | [_; "cpu,cpuacct"; group] ->
+               Some group
+           | _ ->
+               None
+       )
+    |> Option.value ~default:(String.concat "\n" lines)
+end
+
 let attribute_key_regex =
   Re.Posix.compile_pat "^[a-z0-9][a-z0-9._]{0,253}[a-z0-9]$"
 
@@ -306,6 +335,27 @@ module Span = struct
 
   let start ?(attributes = Attributes.empty)
       ?(trace_context : TraceContext.t option) ~name ~parent ~span_kind () =
+    let add_thread_info attributes =
+      let tid = Thread.self () |> Thread.id |> string_of_int in
+      let cgroup =
+        try Pthread.get_cgroup () with _ -> Printexc.get_backtrace ()
+      in
+      let thread_ctx =
+        Xapi_stdext_threads.Threadext.ThreadLocalStorage.get ()
+      in
+      let attributes =
+        attributes
+        |> Attributes.add "ocaml.tid" tid
+        |> Attributes.add "syscall.cgroup" cgroup
+      in
+      match thread_ctx with
+      | None ->
+          attributes
+      | Some thread_ctx ->
+          attributes
+          |> Attributes.add "tls.tgroup"
+               (Tgroup.Group.to_string thread_ctx.tgroup)
+    in
     let trace_id, extra_context =
       match parent with
       | None ->
@@ -329,6 +379,7 @@ module Span = struct
     let status : Status.t = {status_code= Status.Unset; _description= None} in
     let links = [] in
     let events = [] in
+    let attributes = attributes |> add_thread_info in
     {
       context
     ; span_kind
