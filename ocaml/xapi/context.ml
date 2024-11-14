@@ -286,7 +286,17 @@ let attr_of_req (req : Http.Request.t) =
   ]
   |> List.concat
 
-let make_attributes ?task_name ?task_id ?task_uuid ?session_id ?origin () =
+let __get_user_name : (__context:t -> API.ref_session -> string) ref =
+  ref (fun ~__context _ -> "__get_user_name not set")
+
+let __get_user_sid : (__context:t -> API.ref_session -> string) ref =
+  ref (fun ~__context _ -> "__get_user_sid not set")
+
+let __get_session_originator : (__context:t -> API.ref_session -> string) ref =
+  ref (fun ~__context _ -> "__get_session_originator not set")
+
+let make_attributes ?task_name ?task_id ?task_uuid ?session_id ?origin
+    ?__context () =
   [
     attribute_helper_fn
       (fun task_name -> [("xs.xapi.task.name", task_name)])
@@ -299,7 +309,33 @@ let make_attributes ?task_name ?task_id ?task_uuid ?session_id ?origin () =
       task_uuid
   ; attribute_helper_fn
       (fun session_id ->
-        [("xs.xapi.session.track.id", hash_of_session_id session_id)]
+        let auth_user_sid =
+          Option.fold ~none:""
+            ~some:(fun __context ->
+              try !__get_user_sid ~__context session_id with _ -> ""
+            )
+            __context
+        in
+        let auth_user_name =
+          Option.fold ~none:""
+            ~some:(fun __context ->
+              try !__get_user_name ~__context session_id with _ -> ""
+            )
+            __context
+        in
+        let o =
+          Option.fold ~none:""
+            ~some:(fun __context ->
+              try !__get_session_originator ~__context session_id with _ -> ""
+            )
+            __context
+        in
+        [
+          ("xs.xapi.session.track.id", hash_of_session_id session_id)
+        ; ("xs.xapi.session.auth.user.sid", auth_user_sid)
+        ; ("xs.xapi.session.auth.user.name", auth_user_name)
+        ; ("xs.xapi.db.session.originator", o)
+        ]
       )
       session_id
   ; attribute_helper_fn
@@ -436,7 +472,7 @@ let make_subcontext ~__context ?task_in_database task_name =
   let tracing =
     Option.bind __context.tracing (fun parent ->
         let parent = Some parent in
-        let span_attributes = make_attributes ?session_id () in
+        let span_attributes = make_attributes ?session_id ~__context () in
         start_tracing_helper ~span_attributes (fun _ -> parent) task_name
     )
   in
@@ -506,7 +542,7 @@ let with_tracing ?originator ~__context name f =
   let span_attributes =
     Attributes.attr_of_originator originator
     @ make_attributes ~task_id:__context.task_id
-        ?session_id:__context.session_id ()
+        ?session_id:__context.session_id ~__context ()
   in
   match start_tracing_helper ~span_attributes (fun _ -> parent) name with
   | Some _ as span -> (
