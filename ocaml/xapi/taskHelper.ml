@@ -134,6 +134,15 @@ let init () =
      fun ~__context self ->
        Db_actions.DB_Action.Task.get_name_label ~__context ~self
   ) ;
+  (Context.__get_user_name :=
+     fun ~__context self -> Db.Session.get_auth_user_name ~__context ~self
+  ) ;
+  (Context.__get_user_sid :=
+     fun ~__context self -> Db.Session.get_auth_user_sid ~__context ~self
+  ) ;
+  (Context.__get_session_originator :=
+     fun ~__context self -> Db.Session.get_originator ~__context ~self
+  ) ;
   Context.__destroy_task := destroy ;
   Context.__make_task := make
 
