@@ -128,23 +128,26 @@ module Group = struct
   module Creator = struct
     type t = {endpoint: string; kind: Kind.t; originator: Originator.t}
 
-    let make ?user ?subject ?(endpoint = External.name) originator =
+    let make ?_user ?(intrapool = false) ?subject originator =
       let originator = Originator.of_string originator in
-      let endpoint =
-        match originator with
-        | Internal_CLI | Internal_SM ->
-            Internal.name
-        | External ->
-            External.name
-      in
-      let kind =
-        match subject with
-        | None ->
-            Kind.Unautheticated
-        | Some sid ->
-            Kind.Authenticated sid
-      in
-      {endpoint; kind; originator}
+      if intrapool then
+        {endpoint= Internal.name; kind= Kind.Intrapool; originator}
+      else
+        let endpoint =
+          match originator with
+          | Internal_CLI | Internal_SM ->
+              Internal.name
+          | External ->
+              External.name
+        in
+        let kind =
+          match subject with
+          | None ->
+              Kind.Unautheticated
+          | Some sid ->
+              Kind.Authenticated sid
+        in
+        {endpoint; kind; originator}
 
     let default_creator =
       {
@@ -158,14 +161,6 @@ module Group = struct
         (Kind.to_string c.kind) c.endpoint
         (Originator.to_string c.originator)
   end
-
-  let of_originator = function
-    | Originator.Internal_SM ->
-        Group Internal_SM
-    | Originator.Internal_CLI ->
-        Group Internal_CLI
-    | Originator.External ->
-        Group External_Unautheticated
 
   let get_originator = function
     | Group Internal_SM ->

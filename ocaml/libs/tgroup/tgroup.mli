@@ -39,7 +39,7 @@ module Group : sig
     type t
 
     val make :
-      ?user:string -> ?subject:string -> ?endpoint:string -> string -> t
+      ?_user:string -> ?intrapool:bool -> ?subject:string -> string -> t
     (** [make o] creates a creator type based on a given originator [o].*)
 
     val to_string : t -> string

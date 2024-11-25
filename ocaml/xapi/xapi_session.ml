@@ -686,6 +686,7 @@ let consider_touching_session rpc session_id =
 (* Make sure the pool secret matches *)
 let slave_login_common ~__context ~host_str ~psecret =
   Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
+  Tgroup.of_creator (Tgroup.Group.Creator.make ~intrapool:true "") ;
   if not (Helpers.PoolSecret.is_authorized psecret) then (
     let msg = "Pool credentials invalid" in
     debug "Failed to authenticate slave %s: %s" host_str msg ;

@@ -410,7 +410,7 @@ let make_rpc ~__context rpc : Rpc.response =
   let subtask_of = Ref.string_of (Context.get_task_id __context) in
   let open Xmlrpc_client in
   let tracing = Context.set_client_span __context in
-  let dorpc, path =
+  let dorpc, _path =
     if !Xapi_globs.use_xmlrpc then
       (XMLRPC_protocol.rpc, "/")
     else
