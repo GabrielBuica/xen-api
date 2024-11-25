@@ -260,9 +260,9 @@ let of_req_originator originator =
     (fun _ ->
       try
         originator
-        |> Option.value ~default:Group.External.name
-        |> Group.Creator.make
-        |> Cgroup.set_cgroup
+        |> Option.iter (fun originator ->
+               originator |> Group.Creator.make |> Cgroup.set_cgroup
+           )
       with _ -> ()
     )
     (Atomic.get Cgroup.cgroup_dir)
