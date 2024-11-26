@@ -62,9 +62,38 @@ module Group = struct
   end
 
   module Identity = struct
-    type t = string
+    type t = {user_agent: string option; subject_sid: string}
 
-    let to_string s : string = s
+    let is_alphanum = function
+      | '0' .. '9' | 'a' .. 'z' | 'A' .. 'Z' ->
+          true
+      | _ ->
+          false
+
+    let sanitize s =
+      Xapi_stdext_std.Xstringext.String.filter_chars s is_alphanum
+
+    let make ?user_agent subject_sid =
+      let user_agent =
+        user_agent
+        |> Option.map sanitize
+        |> Option.map (fun user_agent ->
+               let len = Int.min (String.length user_agent) 16 in
+               String.sub user_agent 0 len
+           )
+      in
+
+      let subject_sid = if subject_sid = "" then "root" else subject_sid in
+      {user_agent; subject_sid}
+
+    let to_string i =
+      match i.user_agent with
+      | Some user_agent ->
+          i.subject_sid // user_agent
+      | None ->
+          i.subject_sid
+
+    let root_identity = make "root"
   end
 
   type _ group =
@@ -83,7 +112,7 @@ module Group = struct
       Group Internal_SM
     ; Group Internal_CLI
     ; Group External_Intrapool
-    ; Group (External_Authenticated "root")
+    ; Group (External_Authenticated Identity.root_identity)
     ; Group External_Unautheticated
     ]
 
@@ -126,39 +155,41 @@ module Group = struct
   end
 
   module Creator = struct
-    type t = {endpoint: string; kind: Kind.t; originator: Originator.t}
+    type t = {kind: Kind.t; originator: Originator.t}
 
-    let make ?_user ?(intrapool = false) ?subject originator =
-      let originator = Originator.of_string originator in
-      if intrapool then
-        {endpoint= Internal.name; kind= Kind.Intrapool; originator}
-      else
-        let endpoint =
-          match originator with
-          | Internal_CLI | Internal_SM ->
-              Internal.name
-          | External ->
-              External.name
-        in
-        let kind =
-          match subject with
+    let make ?(intrapool = false) ?(endpoint = External.name) ?identity
+        ?originator () =
+      let kind =
+        if intrapool then
+          Kind.Intrapool
+        else
+          match identity with
           | None ->
               Kind.Unautheticated
-          | Some sid ->
-              Kind.Authenticated sid
-        in
-        {endpoint; kind; originator}
+          | Some identity ->
+              Kind.Authenticated identity
+      in
+      let originator =
+        if endpoint = Internal.name then
+          let originator = Option.map Originator.of_string originator in
+          match originator with
+          | None ->
+              Originator.External
+          | Some originator ->
+              originator
+        else
+          Originator.External
+      in
+      {kind; originator}
 
     let default_creator =
       {
-        endpoint= External.name
-      ; kind= Kind.Authenticated "root"
+        kind= Kind.Authenticated (Identity.make "root")
       ; originator= Originator.External
       }
 
     let to_string c =
-      Printf.sprintf "Creator -> kind:%s endpoint:%s originator:%s"
-        (Kind.to_string c.kind) c.endpoint
+      Printf.sprintf "Creator -> kind:%s originator:%s" (Kind.to_string c.kind)
         (Originator.to_string c.originator)
   end
 
@@ -261,7 +292,7 @@ let of_req_originator originator =
       try
         originator
         |> Option.iter (fun originator ->
-               originator |> Group.Creator.make |> Cgroup.set_cgroup
+               Group.Creator.make ~originator () |> Cgroup.set_cgroup
            )
       with _ -> ()
     )

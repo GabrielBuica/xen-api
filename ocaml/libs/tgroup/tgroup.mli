@@ -19,6 +19,11 @@ module Group : sig
   group corresponds to a Creator, and has a designated level of priority.*)
   type t
 
+  module Identity : sig
+    type t 
+    val make : ?user_agent:string -> string -> t
+    val root_identity : t 
+  end
   (** Generic representation of different xapi threads originators. *)
   module Originator : sig
     (** Type that represents different originators of xapi threads. *)
@@ -39,7 +44,12 @@ module Group : sig
     type t
 
     val make :
-      ?_user:string -> ?intrapool:bool -> ?subject:string -> string -> t
+         ?intrapool:bool
+      -> ?endpoint:string
+      -> ?identity:Identity.t
+      -> ?originator:string
+      -> unit
+      -> t
     (** [make o] creates a creator type based on a given originator [o].*)
 
     val to_string : t -> string
