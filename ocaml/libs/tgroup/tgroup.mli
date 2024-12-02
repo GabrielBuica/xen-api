@@ -20,10 +20,13 @@ module Group : sig
   type t
 
   module Identity : sig
-    type t 
+    type t
+
     val make : ?user_agent:string -> string -> t
-    val root_identity : t 
+
+    val root_identity : t
   end
+
   (** Generic representation of different xapi threads originators. *)
   module Originator : sig
     (** Type that represents different originators of xapi threads. *)

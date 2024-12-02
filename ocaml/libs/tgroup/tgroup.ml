@@ -292,7 +292,8 @@ let of_req_originator originator =
       try
         originator
         |> Option.iter (fun originator ->
-               Group.Creator.make ~originator () |> Cgroup.set_cgroup
+               Group.Creator.make ~endpoint:Group.Internal.name ~originator ()
+               |> Cgroup.set_cgroup
            )
       with _ -> ()
     )
