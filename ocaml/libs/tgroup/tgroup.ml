@@ -83,7 +83,10 @@ module Group = struct
            )
       in
 
-      let subject_sid = if subject_sid = "" then "root" else subject_sid in
+      let user_agent = if user_agent = Some "" then None else user_agent in
+      let subject_sid =
+        if subject_sid = "" then "root" else sanitize subject_sid
+      in
       {user_agent; subject_sid}
 
     let to_string i =
@@ -120,12 +123,14 @@ module Group = struct
     type t = Intrapool | Authenticated of Identity.t | Unautheticated
 
     let to_string = function
-      | Intrapool ->
+      | Some Intrapool ->
           External.Intrapool.name
-      | Authenticated identity ->
+      | Some (Authenticated identity) ->
           External.Authenticated.name // Identity.to_string identity
-      | Unautheticated ->
+      | Some Unautheticated ->
           External.Unauthenticated.name
+      | None ->
+          "internal"
   end
 
   module Originator = struct
@@ -155,36 +160,41 @@ module Group = struct
   end
 
   module Creator = struct
-    type t = {kind: Kind.t; originator: Originator.t}
+    type t = {kind: Kind.t option; originator: Originator.t}
 
     let make ?(intrapool = false) ?(endpoint = External.name) ?identity
         ?originator () =
       let kind =
-        if intrapool then
-          Kind.Intrapool
-        else
+        match (intrapool, endpoint) with
+        | true, _ ->
+            Some Kind.Intrapool
+        | false, endpoint when String.equal endpoint Internal.name ->
+            None
+        | false, _ -> (
           match identity with
           | None ->
-              Kind.Unautheticated
+              Some Kind.Unautheticated
           | Some identity ->
-              Kind.Authenticated identity
+              Some (Kind.Authenticated identity)
+        )
       in
       let originator =
-        if endpoint = Internal.name then
+        if String.equal endpoint External.name || intrapool then
+          Originator.External
+        else
           let originator = Option.map Originator.of_string originator in
           match originator with
           | None ->
               Originator.External
           | Some originator ->
               originator
-        else
-          Originator.External
       in
+
       {kind; originator}
 
     let default_creator =
       {
-        kind= Kind.Authenticated (Identity.make "root")
+        kind= Some (Kind.Authenticated (Identity.make "root"))
       ; originator= Originator.External
       }
 
@@ -202,20 +212,17 @@ module Group = struct
         Originator.External
 
   let of_creator creator =
-    match creator.Creator.originator with
-    | Internal_SM ->
+    match (creator.Creator.originator, creator.Creator.kind) with
+    | _, Some Intrapool ->
+        Group External_Intrapool
+    | Internal_SM, _ ->
         Group Internal_SM
-    | Internal_CLI ->
+    | Internal_CLI, _ ->
         Group Internal_CLI
-    | External -> (
-      match creator.Creator.kind with
-      | Authenticated identity ->
-          Group (External_Authenticated identity)
-      | Intrapool ->
-          Group External_Intrapool
-      | Unautheticated ->
-          Group External_Unautheticated
-    )
+    | External, Some (Authenticated identity) ->
+        Group (External_Authenticated identity)
+    | External, Some Unautheticated | External, None ->
+        Group External_Unautheticated
 
   let to_cgroup : type a. a group -> string = function
     | Internal_SM ->
@@ -230,6 +237,8 @@ module Group = struct
         External.name // External.Intrapool.name
     | External_Unautheticated ->
         External.name // External.Unauthenticated.name
+
+  let to_string g = match g with Group group -> to_cgroup group
 end
 
 module Cgroup = struct

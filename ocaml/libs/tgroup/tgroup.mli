@@ -25,6 +25,8 @@ module Group : sig
     val make : ?user_agent:string -> string -> t
 
     val root_identity : t
+
+    val to_string : t -> string
   end
 
   (** Generic representation of different xapi threads originators. *)
@@ -64,6 +66,8 @@ module Group : sig
 
   val of_creator : Creator.t -> t
   (** [of_creator c] returns the corresponding group based on the creator [c].*)
+
+  val to_string : t -> string
 end
 
 (** [Cgroup] module encapsulates different function for managing the cgroups
