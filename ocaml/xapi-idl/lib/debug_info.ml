@@ -23,9 +23,25 @@ let of_string s =
   let open Tracing in
   match String.split_on_char separator s with
   | [log; traceparent] ->
-      let spancontext = SpanContext.of_traceparent traceparent in
+      let trace_context =
+        try
+          let trace_context = Tracing.TraceContext.of_json_string traceparent in
+          match trace_context with
+          | Ok trace_context ->
+              Some trace_context
+          | Error _ ->
+              None
+        with _ ->
+          Some
+            (TraceContext.empty
+            |> TraceContext.with_traceparent (Some traceparent)
+            )
+      in
+      let spancontext =
+        Option.(join (map Tracing.SpanContext.of_trace_context trace_context))
+      in
       let tracing =
-        Option.map (fun tp -> Tracer.span_of_span_context tp log) spancontext
+        Option.map (Fun.flip Tracer.span_of_span_context log) spancontext
       in
       {log; tracing}
   | _ ->
@@ -37,11 +53,18 @@ let filter_separator = Astring.String.filter (( <> ) separator)
 let to_string t =
   Option.fold ~none:t.log
     ~some:(fun span ->
-      let traceparent =
-        Tracing.Span.get_context span |> Tracing.SpanContext.to_traceparent
+      let trace_context =
+        let traceparent =
+          span |> Tracing.Span.get_context |> Tracing.SpanContext.to_traceparent
+        in
+        span
+        |> Tracing.Span.get_context
+        |> Tracing.SpanContext.context_of_span_context
+        |> Tracing.TraceContext.with_traceparent (Some traceparent)
+        |> Tracing.TraceContext.to_json_string
       in
       Printf.sprintf "%s%c%s" (filter_separator t.log) separator
-        (filter_separator traceparent)
+        (filter_separator trace_context)
     )
     t.tracing
 
@@ -68,7 +91,15 @@ let with_dbg ?(with_thread = false) ~module_name ~name ~dbg f =
 
 let traceparent_of_dbg dbg =
   match String.split_on_char separator dbg with
-  | [_; traceparent] ->
-      Some traceparent
+  | [_; traceparent] -> (
+    try
+      let trace_context = Tracing.TraceContext.of_json_string traceparent in
+      match trace_context with
+      | Ok trace_context ->
+          Tracing.TraceContext.traceparent_of trace_context
+      | Error _ ->
+          None
+    with _ -> Some traceparent
+  )
   | _ ->
       None
