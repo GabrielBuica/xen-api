@@ -317,11 +317,9 @@ module Span = struct
     let context : SpanContext.t =
       {trace_id; span_id; trace_context= extra_context}
     in
-    let traceparent = context |> SpanContext.to_traceparent in
     let context =
       (* If trace_context is provided to the call, override any inherited trace context. *)
       trace_context
-      |> Option.map (TraceContext.with_traceparent (Some traceparent))
       |> Option.fold ~none:context
            ~some:(Fun.flip SpanContext.with_trace_context context)
     in

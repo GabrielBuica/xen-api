@@ -22,10 +22,18 @@ let make ~log ~tracing = {log; tracing}
 let of_string s =
   let open Tracing in
   match String.split_on_char separator s with
-  | [log; traceparent] ->
+  | [log; trace_context] ->
+      (* Process the tracing data:
+         1. We expect a JSON representing the trace_context.
+         2. If the JSON is valid but not representing a trace_context,
+         we ignore the tracing data.
+         3. If we get an exception from parsing the JSON string,
+         it means a traceparent string was received.*)
       let trace_context =
         try
-          let trace_context = Tracing.TraceContext.of_json_string traceparent in
+          let trace_context =
+            Tracing.TraceContext.of_json_string trace_context
+          in
           match trace_context with
           | Ok trace_context ->
               Some trace_context
@@ -34,7 +42,7 @@ let of_string s =
         with _ ->
           Some
             (TraceContext.empty
-            |> TraceContext.with_traceparent (Some traceparent)
+            |> TraceContext.with_traceparent (Some trace_context)
             )
       in
       let spancontext =
@@ -91,15 +99,21 @@ let with_dbg ?(with_thread = false) ~module_name ~name ~dbg f =
 
 let traceparent_of_dbg dbg =
   match String.split_on_char separator dbg with
-  | [_; traceparent] -> (
+  | [_; trace_context] -> (
+    (* Process the tracing data:
+         1. We expect a JSON representing the trace_context.
+         2. If the JSON is valid but not representing a trace_context,
+         we ignore the tracing data.
+         3. If we get an exception from parsing the JSON string,
+         it means a traceparent string was received.*)
     try
-      let trace_context = Tracing.TraceContext.of_json_string traceparent in
+      let trace_context = Tracing.TraceContext.of_json_string trace_context in
       match trace_context with
       | Ok trace_context ->
           Tracing.TraceContext.traceparent_of trace_context
       | Error _ ->
           None
-    with _ -> Some traceparent
+    with _ -> Some trace_context
   )
   | _ ->
       None
