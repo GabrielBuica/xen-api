@@ -30,15 +30,7 @@ let of_string s =
          3. If we get an exception from parsing the JSON string,
          it means a traceparent string was received.*)
       let trace_context =
-        try
-          let trace_context =
-            Tracing.TraceContext.of_json_string trace_context
-          in
-          match trace_context with
-          | Ok trace_context ->
-              Some trace_context
-          | Error _ ->
-              None
+        try Some (Tracing.TraceContext.of_derived_string trace_context)
         with _ ->
           Some
             (TraceContext.empty
@@ -69,7 +61,7 @@ let to_string t =
         |> Tracing.Span.get_context
         |> Tracing.SpanContext.context_of_span_context
         |> Tracing.TraceContext.with_traceparent (Some traceparent)
-        |> Tracing.TraceContext.to_json_string
+        |> Tracing.TraceContext.to_derived_string
       in
       Printf.sprintf "%s%c%s" (filter_separator t.log) separator
         (filter_separator trace_context)
@@ -107,12 +99,9 @@ let traceparent_of_dbg dbg =
          3. If we get an exception from parsing the JSON string,
          it means a traceparent string was received.*)
     try
-      let trace_context = Tracing.TraceContext.of_json_string trace_context in
-      match trace_context with
-      | Ok trace_context ->
-          Tracing.TraceContext.traceparent_of trace_context
-      | Error _ ->
-          None
+      trace_context
+      |> Tracing.TraceContext.of_derived_string
+      |> Tracing.TraceContext.traceparent_of
     with _ -> Some trace_context
   )
   | _ ->

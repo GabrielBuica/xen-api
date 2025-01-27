@@ -211,12 +211,27 @@ end
 
 (* The context of a trace that can be propagated across service boundaries. *)
 module TraceContext = struct
-  type traceparent = string [@@deriving yojson]
+  open Sexplib0.Sexp_conv
 
-  type baggage = (string * string) list [@@deriving yojson]
+  exception Parse_error of {offset: int; message: string; input: string}
+
+  module Wire = Csexp.Make (Sexplib0.Sexp)
+
+  let wire_of_sexp = Wire.to_string
+
+  let sexp_of_wire input =
+    match Wire.parse_string input with
+    | Ok r ->
+        r
+    | Error (offset, message) ->
+        raise (Parse_error {offset; message; input})
+
+  type traceparent = string [@@deriving sexp]
+
+  type baggage = (string * string) list [@@deriving sexp]
 
   type t = {traceparent: traceparent option; baggage: baggage option}
-  [@@deriving yojson]
+  [@@deriving sexp]
 
   let empty = {traceparent= None; baggage= None}
 
@@ -228,9 +243,9 @@ module TraceContext = struct
 
   let baggage_of ctx = ctx.baggage
 
-  let to_json_string t = Yojson.Safe.to_string (to_yojson t)
+  let to_derived_string t = t |> sexp_of_t |> wire_of_sexp
 
-  let of_json_string s = of_yojson (Yojson.Safe.from_string s)
+  let of_derived_string s = s |> sexp_of_wire |> t_of_sexp
 end
 
 module SpanContext = struct

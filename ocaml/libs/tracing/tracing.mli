@@ -95,9 +95,9 @@ module TraceContext : sig
 
   val baggage_of : t -> baggage option
 
-  val to_json_string : t -> string
+  val to_derived_string : t -> string
 
-  val of_json_string : string -> (t, string) result
+  val of_derived_string : string -> t
 end
 
 module SpanContext : sig

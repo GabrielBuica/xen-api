@@ -1,9 +1,9 @@
 (library
  (name tracing)
  (modules tracing)
- (libraries re uri yojson xapi-log xapi-stdext-threads threads.posix)
+ (libraries csexp re sexplib0 uri xapi-log xapi-stdext-threads threads.posix)
  (preprocess
-  (pps ppx_deriving_yojson))
+  (pps ppx_sexp_conv))
  (public_name xapi-tracing))
 
 (library
