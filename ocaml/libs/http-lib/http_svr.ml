@@ -574,7 +574,18 @@ let handle_connection ~header_read_timeout ~header_total_timeout
         ~max_length:max_header_length ss
     in
 
-    Http.Request.with_originator_of req Tgroup.of_req_originator ;
+    (* let tgroup_SM =
+         Xapi_timeslice.Timeslice.Runtime.Thread_Group.create ~tgroup_name:"SM"
+           ~tgroup_share:90
+       in
+       Xapi_timeslice.Timeslice.Runtime.Thread_Group.(add tgroup_SM) ;
+       Xapi_timeslice.Timeslice.Runtime.Thread_Group.with_one_thread_in_tgroup_opt
+         (Some tgroup_SM)
+       @@ fun () -> *)
+    Http.Request.with_originator_of req
+      (Tgroup.of_req_originator
+         Xapi_stdext_threads.Threadext.ThreadLocalStorage.set
+      ) ;
 
     (* 2. now we attempt to process the request *)
     let finished =

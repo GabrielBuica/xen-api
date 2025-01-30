@@ -42,3 +42,25 @@ val lock_acquired : unit -> unit
 
 val lock_released : unit -> unit
 (** [lock_acquired ()] notifies about lock release. *)
+
+module Runtime : sig
+  (*module Thread_Group : sig
+      type tgroup = {
+          mutable tgroup_name: string
+        ; mutable tgroup_share: int
+        ; mutable thread_count: int Atomic.t
+        ; mutable time_ideal: Mtime.span
+        ; mutable epoch: Mtime.t
+      }
+
+      type t = tgroup option
+
+      val create : tgroup_name:string -> tgroup_share:int -> tgroup
+
+      val add : tgroup -> unit
+
+      val with_one_thread_in_tgroup : tgroup -> (unit -> 'a) -> 'a
+
+      val with_one_thread_in_tgroup_opt : t -> (unit -> 'a) -> 'a
+    end*)
+end

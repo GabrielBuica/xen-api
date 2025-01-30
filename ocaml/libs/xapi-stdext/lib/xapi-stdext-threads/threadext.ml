@@ -97,3 +97,43 @@ let wait_timed_write fd timeout =
       true
   | _ ->
       assert false
+
+module ThreadLocalStorage = struct
+  type t = {
+      mutable thread_name: string
+    ; mutable time_running: Mtime.span
+    ; mutable time_last_yield: Mtime_clock.counter
+    ; mutable tgroup: Tgroup.Group.t
+    ; mutable tepoch: Mtime.t
+  }
+
+  let thread_local_storage = Ambient_context_thread_local.Thread_local.create ()
+
+  let create () =
+    let thread_name = "" in
+    let tgroup = Tgroup.Group.authenticated_root in
+    let time_running = Mtime.Span.zero in
+    let time_last_yield = Mtime_clock.counter () in
+    let tepoch = Mtime_clock.now () in
+    let t = {thread_name; time_running; time_last_yield; tgroup; tepoch} in
+    (*Ambient_context_thread_local.Thread_local.set thread_local_storage *)
+    t
+
+  let get () =
+    Ambient_context_thread_local.Thread_local.get_or_create ~create
+      thread_local_storage
+    |> Option.some
+
+  let set ~thread_name ~tgroup =
+    let tls = get () in
+    Option.iter
+      (fun tls ->
+        tls.thread_name <- thread_name ;
+        tls.tgroup <- tgroup ;
+        Ambient_context_thread_local.Thread_local.set thread_local_storage tls
+      )
+      tls
+
+  let remove () =
+    Ambient_context_thread_local.Thread_local.remove thread_local_storage
+end

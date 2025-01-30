@@ -37,7 +37,7 @@ module Group : sig
 
     val of_string : string -> t
     (** [of_string s] creates an originator from a string [s].
-        
+
         e.g create an originator based on a http header. *)
 
     val to_string : t -> string
@@ -76,6 +76,8 @@ module Group : sig
 
   val to_string : t -> string
   (** [to_string g] returns the string representation of the group [g].*)
+
+  val authenticated_root : t
 end
 
 (** [Cgroup] module encapsulates different function for managing the cgroups
@@ -87,7 +89,7 @@ module Cgroup : sig
   val dir_of : Group.t -> t option
   (** [dir_of group] returns the full path of the cgroup directory corresponding
           to the group [group] as [Some dir].
-          
+
           Returns [None] if [init dir] has not been called. *)
 
   val init : string -> unit
@@ -99,9 +101,41 @@ module Cgroup : sig
           creator [c].*)
 end
 
+module ThreadGroup : sig
+  type tgroup = {
+      mutable tgroup: Group.t
+    ; mutable tgroup_name: string
+    ; mutable tgroup_share: int
+    ; mutable thread_count: int Atomic.t
+    ; mutable time_ideal: Mtime.span
+    ; mutable epoch: Mtime.t
+  }
+
+  type t = tgroup option
+
+  val tgroup_total_share : int Atomic.t
+
+  val tgroups : unit -> tgroup list
+
+  val get_tgroup : Group.t -> tgroup option
+
+  val create : tgroup:Group.t -> tgroup
+
+  val add : tgroup -> unit
+
+  val with_one_thread_in_tgroup : tgroup -> (unit -> 'a) -> 'a
+
+  val with_one_thread_in_tgroup_opt : t -> (unit -> 'a) -> 'a
+
+  val with_one_fewer_thread_in_tgroup : tgroup -> (unit -> 'a) -> 'a
+end
+
+val init : string -> unit
+
 val of_creator : Group.Creator.t -> unit
 (** [of_creator g] classifies the current thread based based on the creator [c].*)
 
-val of_req_originator : string option -> unit
+val of_req_originator :
+  (thread_name:string -> tgroup:Group.t -> unit) -> string option -> unit
 (** [of_req_originator o] same as [of_creator] but it classifies based on the
     http request header.*)

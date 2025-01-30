@@ -43,3 +43,21 @@ end
 val wait_timed_read : Unix.file_descr -> float -> bool
 
 val wait_timed_write : Unix.file_descr -> float -> bool
+
+module ThreadLocalStorage : sig
+  type t = {
+      mutable thread_name: string
+    ; mutable time_running: Mtime.span
+    ; mutable time_last_yield: Mtime_clock.counter
+    ; mutable tgroup: Tgroup.Group.t
+    ; mutable tepoch: Mtime.t
+  }
+
+  val create : unit -> t
+
+  val get : unit -> t option
+
+  val set : thread_name:string -> tgroup:Tgroup.Group.t -> unit
+
+  val remove : unit -> unit
+end

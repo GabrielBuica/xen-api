@@ -74,4 +74,80 @@ let tests =
   ; ("other_thread", `Quick, other_thread)
   ]
 
-let () = Alcotest.run "Threadext" [("Delay", tests)]
+exception UnitilizedThreadStorage
+
+let failwith_no_storage () = raise UnitilizedThreadStorage
+
+let test_create_ambient_storage () =
+  let open Xapi_stdext_threads.Threadext in
+  ThreadLocalStorage.create () ;
+  let storage =
+    match ThreadLocalStorage.get () with
+    | Some storage ->
+        storage
+    | None ->
+        failwith_no_storage ()
+  in
+  let storage_tid = storage.ocaml_tid in
+  let ocaml_tid = Thread.self () |> Thread.id in
+  Alcotest.(check int)
+    "Ocaml thread id matches the thread id stored" ocaml_tid storage_tid
+
+let test_thread_storage_set_and_get () =
+  let open Xapi_stdext_threads.Threadext in
+  let expected_weight = 1 in
+  ThreadLocalStorage.create () ;
+  ThreadLocalStorage.set ~weight:expected_weight ;
+  match ThreadLocalStorage.get () with
+  | Some storage ->
+      Alcotest.(check int)
+        "Check if correct value is set in storage" expected_weight
+        storage.weight
+  | None ->
+      failwith_no_storage ()
+
+let test_storage_locality () =
+  let open Xapi_stdext_threads.Threadext in
+  let r1 = ref None in
+  let r2 = ref None in
+
+  let thread1_weight = 128 in
+  let thread2_weight = 256 in
+
+  let thread1 =
+    Thread.create
+      (fun () ->
+        ThreadLocalStorage.create () ;
+        ThreadLocalStorage.set ~weight:thread1_weight ;
+        Thread.delay 0.1 ;
+        r1 := ThreadLocalStorage.get ()
+      )
+      ()
+  in
+  let thread2 =
+    Thread.create
+      (fun () ->
+        ThreadLocalStorage.create () ;
+        ThreadLocalStorage.set ~weight:thread2_weight ;
+        r2 := ThreadLocalStorage.get ()
+      )
+      ()
+  in
+  Thread.join thread1 ;
+  Thread.join thread2 ;
+  match (!r1, !r2) with
+  | Some r1, Some r2 ->
+      Alcotest.(check int) "Thread1 weight" thread1_weight r1.weight ;
+      Alcotest.(check int) "Thread2 weight" thread2_weight r2.weight
+  | _, _ ->
+      failwith_no_storage ()
+
+let tls_tests =
+  [
+    ("create storage", `Quick, test_create_ambient_storage)
+  ; ("storage set and get", `Quick, test_thread_storage_set_and_get)
+  ; ("thread local storage", `Quick, test_storage_locality)
+  ]
+
+let () =
+  Alcotest.run "Threadext" [("Delay", tests); ("ThreadLocalStorage", tls_tests)]
