@@ -689,7 +689,6 @@ let slave_login_common ~__context ~host_str ~psecret =
   Constants.when_tgroups_enabled (fun () ->
       Tgroup.of_creator (Tgroup.Group.Creator.make ~intrapool:true ())
   ) ;
-
   if not (Helpers.PoolSecret.is_authorized psecret) then (
     let msg = "Pool credentials invalid" in
     debug "Failed to authenticate slave %s: %s" host_str msg ;
@@ -889,7 +888,6 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
           Tgroup.of_creator
             Tgroup.Group.(Creator.make ~identity:Identity.root_identity ())
       ) ;
-
       login_no_password_common ~__context ~uname:(Some uname) ~originator
         ~host:(Helpers.get_localhost ~__context)
         ~pool:false ~is_local_superuser:true ~subject:Ref.null ~auth_user_sid:""
@@ -939,7 +937,6 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
               Tgroup.of_creator
                 Tgroup.Group.(Creator.make ~identity:Identity.root_identity ())
           ) ;
-
           login_no_password_common ~__context ~uname:(Some uname) ~originator
             ~host:(Helpers.get_localhost ~__context)
             ~pool:false ~is_local_superuser:true ~subject:Ref.null
