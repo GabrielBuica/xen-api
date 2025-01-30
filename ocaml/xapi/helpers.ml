@@ -440,6 +440,41 @@ let make_rpc ~__context rpc : Rpc.response =
   in
   dorpc ~srcstr:"xapi" ~dststr:"xapi" ~transport ~http rpc
 
+let make_rpc' ?originator ~__context rpc : Rpc.response =
+  let subtask_of = Ref.string_of (Context.get_task_id __context) in
+  let open Xmlrpc_client in
+  let tracing = Context.set_client_span __context in
+  let dorpc, path =
+    if !Xapi_globs.use_xmlrpc then
+      (XMLRPC_protocol.rpc, "/")
+    else
+      (JSONRPC_protocol.rpc, "/jsonrpc")
+  in
+  let http = xmlrpc ~subtask_of ~version:"1.1" path in
+  let http = TraceHelper.inject_span_into_req tracing http in
+  let http =
+    match originator with
+    | None ->
+        http
+    | Some originator ->
+        let additional_headers =
+          ("originator", originator) :: http.additional_headers
+        in
+        {http with additional_headers}
+  in
+  let transport =
+    if Pool_role.is_master () then
+      Unix Xapi_globs.unix_domain_socket
+    else
+      SSL
+        ( SSL.make ~use_stunnel_cache:true ~verify_cert:(Stunnel_client.pool ())
+            ()
+        , Pool_role.get_master_address ()
+        , !Constants.https_port
+        )
+  in
+  dorpc ~srcstr:"xapi" ~dststr:"xapi" ~transport ~http rpc
+
 let make_timeboxed_rpc ~__context timeout rpc : Rpc.response =
   let subtask_of = Ref.string_of (Context.get_task_id __context) in
   Server_helpers.exec_with_new_task "timeboxed_rpc"

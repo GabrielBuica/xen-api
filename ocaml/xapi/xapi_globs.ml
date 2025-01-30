@@ -1699,6 +1699,11 @@ let other_options =
     , (fun () -> string_of_bool !Constants.tgroups_enabled)
     , "Turn on tgroups classification"
     )
+  ; ( "runtime-enabled"
+    , Arg.Set Constants.runtime_sched
+    , (fun () -> string_of_bool !Constants.runtime_sched)
+    , "Turn on timeslice runtime sched"
+    )
   ; event_from_entry
   ; event_from_task_entry
   ; event_next_entry

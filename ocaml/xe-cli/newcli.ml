@@ -818,7 +818,12 @@ let main () =
         in
         let args = String.concat "\n" args in
         Printf.fprintf oc "User-agent: xe-cli/Unix/%d.%d\r\n" major minor ;
-        Printf.fprintf oc "originator: cli\r\n" ;
+        ( match Sys.getenv_opt "BAGGAGE" with
+        | None ->
+            Printf.fprintf oc "originator: cli\r\n"
+        | _ ->
+            ()
+        ) ;
         Option.iter (Printf.fprintf oc "traceparent: %s\r\n") traceparent ;
         Option.iter
           (Printf.fprintf oc "baggage: %s\r\n")
