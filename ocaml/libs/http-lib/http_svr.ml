@@ -574,19 +574,24 @@ let handle_connection ~header_read_timeout ~header_total_timeout
         ~max_length:max_header_length ss
     in
 
-    (* let tgroup_SM =
-         Xapi_timeslice.Timeslice.Runtime.Thread_Group.create ~tgroup_name:"SM"
-           ~tgroup_share:90
-       in
-       Xapi_timeslice.Timeslice.Runtime.Thread_Group.(add tgroup_SM) ;
-       Xapi_timeslice.Timeslice.Runtime.Thread_Group.with_one_thread_in_tgroup_opt
-         (Some tgroup_SM)
-       @@ fun () -> *)
-    Http.Request.with_originator_of req
-      (Tgroup.of_req_originator
-         Xapi_stdext_threads.Threadext.ThreadLocalStorage.set
-      ) ;
+    let tgroup_ref = ref None in
 
+    Constants.when_tgroups_enabled (fun () ->
+        Http.Request.with_originator_of req (fun originator ->
+            let tgroup = Tgroup.of_req_originator originator in
+            Option.iter
+              (fun tgroup ->
+                tgroup_ref := Some tgroup ;
+                Xapi_stdext_threads.Threadext.ThreadLocalStorage.set ~tgroup ()
+              )
+              tgroup
+        )
+    ) ;
+
+    Tgroup.ThreadGroup.with_one_thread_of_group_opt
+      ~guard:(not !Constants.tgroups_enabled)
+      !tgroup_ref
+    @@ fun () ->
     (* 2. now we attempt to process the request *)
     let finished =
       Option.fold ~none:true

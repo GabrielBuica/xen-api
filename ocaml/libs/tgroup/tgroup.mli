@@ -125,26 +125,19 @@ module ThreadGroup : sig
 
   val with_one_thread_in_tgroup : tgroup -> (unit -> 'a) -> 'a
 
-  val with_one_thread_in_tgroup_opt : t -> (unit -> 'a) -> 'a
+  val with_one_thread_of_group : Group.t -> (unit -> 'a) -> 'a
+
+  val with_one_thread_of_group_opt :
+    ?guard:bool -> Group.t option -> (unit -> 'a) -> 'a
 
   val with_one_fewer_thread_in_tgroup : tgroup -> (unit -> 'a) -> 'a
 end
 
 val init : string -> unit
 
-val of_creator : Group.Creator.t -> unit
+val of_creator : Group.Creator.t -> Group.t
 (** [of_creator g] classifies the current thread based based on the creator [c].*)
 
-val of_req_originator :
-     (   ?thread_name:string
-      -> ?time_running:Mtime.span
-      -> ?time_last_yield:Mtime_clock.counter
-      -> ?tepoch:Mtime.t
-      -> ?tgroup:Group.t
-      -> unit
-      -> unit
-     )
-  -> string option
-  -> unit
+val of_req_originator : string option -> Group.t option
 (** [of_req_originator o] same as [of_creator] but it classifies based on the
     http request header.*)

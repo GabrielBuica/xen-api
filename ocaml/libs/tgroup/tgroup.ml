@@ -121,15 +121,15 @@ module Group = struct
 
   let get_share = function
     | Group Internal_SM ->
-        0
+        315
     | Group Internal_CLI ->
-        5
+        50
     | Group External_Intrapool ->
-        0
+        315
     | Group External_Unauthenticated ->
-        0
+        5
     | Group (External_Authenticated _) ->
-        995
+        315
 
   module Endpoint = struct type t = Internal | External end
 
@@ -336,7 +336,7 @@ module ThreadGroup = struct
 
   type t = tgroup option
 
-  let _tgroups : t array Atomic.t = Atomic.make (Array.make 0 None)
+  let tgroups : t array Atomic.t = Atomic.make (Array.make 0 None)
 
   let tgroup_total_share = Atomic.make 0
 
@@ -354,9 +354,11 @@ module ThreadGroup = struct
     let _ = Atomic.fetch_and_add tgroup_total_share tgroup.tgroup_share in
     while
       not
-        (let seen = Atomic.get _tgroups in
-         Atomic.compare_and_set _tgroups seen
-           (Array.make 1 (Some tgroup) |> Array.append seen)
+        (let seen = Atomic.get tgroups in
+         Some tgroup
+         |> Array.make 1
+         |> Array.append seen
+         |> Atomic.compare_and_set tgroups seen
         )
     do
       () (* todo: raise exception after n unsuccessful attempts *)
@@ -364,21 +366,22 @@ module ThreadGroup = struct
     tgroup.epoch <- Mtime_clock.now ()
 
   let tgroups () =
-    Array.fold_left
-      (fun xs x -> match x with None -> xs | Some x -> x :: xs)
-      [] (_tgroups |> Atomic.get)
+    tgroups
+    |> Atomic.get
+    |> Array.fold_left
+         (fun xs x -> match x with None -> xs | Some x -> x :: xs)
+         []
 
   let get_tgroup g =
     tgroups ()
     |> List.find_opt (fun tg ->
            let g =
              match g with
-             | Group.Group Internal_SM ->
-                 Group.authenticated_root
+             | Group.Group Internal_SM
              | Group.Group Internal_CLI
              | Group.Group External_Intrapool
              | Group.Group External_Unauthenticated ->
-                 Group.Group Internal_CLI
+                 g
              | Group.Group (External_Authenticated _) ->
                  Group.authenticated_root
            in
@@ -398,9 +401,9 @@ module ThreadGroup = struct
       (tg.thread_count |> Atomic.get)
       ((tg.time_ideal |> Mtime.Span.to_float_ns) /. 1e9) ;
     thread_starts_in_tgroup tg ;
-    Xapi_stdext_pervasives.Pervasiveext.finally
-      (fun () -> f ())
-      (fun () -> thread_stops_in_tgroup tg)
+    Xapi_stdext_pervasives.Pervasiveext.finally f (fun () ->
+        thread_stops_in_tgroup tg
+    )
 
   let with_one_fewer_thread_in_tgroup tg f =
     (* when tgroup.thread_count < 1, then sched_global_slice will ignore this tgroup *)
@@ -408,12 +411,26 @@ module ThreadGroup = struct
       ()
     else
       thread_stops_in_tgroup tg ;
-    Xapi_stdext_pervasives.Pervasiveext.finally
-      (fun () -> f ())
-      (fun () -> thread_starts_in_tgroup tg)
+    Xapi_stdext_pervasives.Pervasiveext.finally f (fun () ->
+        thread_starts_in_tgroup tg
+    )
 
-  let with_one_thread_in_tgroup_opt tg_opt f =
+  let with_one_thread_of_group group f =
+    let tg_opt = get_tgroup group in
     match tg_opt with None -> f () | Some tg -> with_one_thread_in_tgroup tg f
+
+  let with_one_thread_of_group_opt ?(guard = true) group f =
+    match (guard, group) with
+    | true, _ | _, None ->
+        f ()
+    | false, Some group -> (
+        let tg_opt = get_tgroup group in
+        match tg_opt with
+        | None ->
+            f ()
+        | Some tg ->
+            with_one_thread_in_tgroup tg f
+      )
 end
 
 let init dir =
@@ -424,43 +441,23 @@ let init dir =
          Cgroup.with_dir dir debug "created cgroup for: %s" dir
      ) ;
   Group.all |> List.iter (fun group -> ThreadGroup.(create ~tgroup:group |> add)) ;
-  ThreadGroup.with_one_thread_in_tgroup_opt
-    (Group.of_creator Group.Creator.default_creator |> ThreadGroup.get_tgroup)
-  @@ fun () -> Cgroup.set_cur_cgroup ~creator:Group.Creator.default_creator
+  Cgroup.set_cur_cgroup ~creator:Group.Creator.default_creator
 
-let of_req_originator
-    (fn :
-         ?thread_name:string
-      -> ?time_running:Mtime.span
-      -> ?time_last_yield:Mtime_clock.counter
-      -> ?tepoch:Mtime.t
-      -> ?tgroup:Group.t
-      -> unit
-      -> unit
-      ) originator =
-  Option.iter
-    (fun _ ->
-      try
-        originator
-        |> Option.iter (fun originator ->
-               let originator = Group.Originator.of_string originator in
-               let creator =
-                 Group.Creator.make ~endpoint:Group.Endpoint.Internal
-                   ~originator ()
-               in
-               let group = Group.of_creator creator in
-               ThreadGroup.with_one_thread_in_tgroup_opt
-                 (ThreadGroup.get_tgroup group) (fun () ->
-                   fn ~thread_name:"" ~tgroup:group () ;
-                   Cgroup.set_cgroup creator
-               )
-           )
-      with _ -> ()
-    )
-    (Atomic.get Cgroup.cgroup_dir)
+let of_req_originator originator =
+  let ( let* ) = Option.bind in
+  let* _ = Atomic.get Cgroup.cgroup_dir in
+  try
+    let* originator in
+    let originator = Group.Originator.of_string originator in
+    let creator =
+      Group.Creator.make ~endpoint:Group.Endpoint.Internal ~originator ()
+    in
+    let group = Group.of_creator creator in
+    let () = Cgroup.set_cgroup creator in
+    Some group
+  with _ -> None
 
 let of_creator creator =
   let group = Group.of_creator creator in
-  ThreadGroup.with_one_thread_in_tgroup_opt (ThreadGroup.get_tgroup group)
-    (fun () -> Cgroup.set_cgroup creator
-  )
+  let () = Cgroup.set_cgroup creator in
+  group

@@ -3,6 +3,7 @@
  (package xapi-idl)
  (libraries
   threads.posix
+  clock
   mtime
   mtime.clock.os
   tgroup

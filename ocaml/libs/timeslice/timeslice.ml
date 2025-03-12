@@ -73,61 +73,53 @@ module Runtime = struct
             ThreadLocalStorage.set ~time_running ()
         ) ;
 
-        (*
-        let is_to_yield_current_thread delay_s =
-          (* todo: returns true probabilistically more often if thread has run out of runtime *)
-          true
-        in
-        *)
-        let is_to_sleep_current_thread delay_s =
-          (* todo: returns true probabilistically more often if thread has run out of runtime *)
-          delay_s > 0.
+        let is_to_sleep_or_yield delay_s =
+          if delay_s > 0. then
+            Tgroup.ThreadGroup.with_one_fewer_thread_in_tgroup tgroup
+            @@ fun () ->
+            (* D.debug
+               "runtime: sleep=%f s: thread_name=%s \
+                time_running=%f s g.tgroup_name=%s g.tgroup_share=%d \
+                g.thread_count=%d epoch_count=%d tgroup_ideal=%f"
+               delay_s
+               (Thread.self () |> Thread.id |> string_of_int)
+               (Clock.Timer.span_to_s thread_ctx.time_running )
+               tgroup.tgroup_name tgroup.tgroup_share
+               (tgroup.thread_count |> Atomic.get)
+               (epoch_count |> Atomic.get)
+               (Clock.Timer.span_to_s tgroup.time_ideal ); *)
+            if tgroup.tgroup <> Tgroup.Group.authenticated_root then
+              let _ = Xapi_stdext_unix.Unixext.select [] [] [] delay_s in
+              ()
+            else
+              Thread.yield ()
         in
 
-        (* fair scheduling decision to check if thread running time has exceeded tgroup-mandated ideal time per thread *)
-        if Mtime.Span.compare thread_ctx.time_running tgroup.time_ideal > 0 then (
+        (* fair scheduling decision to check if thread time_running has exceeded
+           tgroup-mandated ideal time per thread *)
+        if
+          Clock.Timer.span_is_longer thread_ctx.time_running
+            ~than:tgroup.time_ideal
+        then (
           ThreadLocalStorage.set ~time_last_yield:(Mtime_clock.counter ()) () ;
+
+          let yield_interval = Atomic.get yield_interval in
 
           let since_last_global_slice =
             Mtime_clock.count (last_yield |> Atomic.get)
           in
           let until_next_global_slice =
-            Mtime.Span.abs_diff
-              (yield_interval |> Atomic.get)
-              since_last_global_slice
+            Mtime.Span.abs_diff yield_interval since_last_global_slice
           in
           let delay_s =
-            (until_next_global_slice |> Mtime.Span.to_float_ns) /. 1e9
-          in
-          (*
-          (* todo: add sliding negative-pressure algorithm that combines both yielding (low-pressure) and sleep (high-pressure) *)
-          if delay_s |> is_to_yield_current_thread then (
-            Thread.yield ()
-          );
-          *)
-          if delay_s |> is_to_sleep_current_thread then (
-            (* as thread ran out of running time: sleep until next_global_slice *)
-            Tgroup.ThreadGroup.with_one_fewer_thread_in_tgroup tgroup
-            @@ fun () ->
-            D.debug
-              "runtime: maybe_thread_yield sleep=%f s: thread_name=%s \
-               time_running=%f s g.tgroup_name=%s g.tgroup_share=%d \
-               g.thread_count=%d epoch_count=%d tgroup_ideal=%f"
-              delay_s
-              (Thread.self () |> Thread.id |> string_of_int)
-              ((thread_ctx.time_running |> Mtime.Span.to_float_ns) /. 1e9)
-              tgroup.tgroup_name tgroup.tgroup_share
-              (tgroup.thread_count |> Atomic.get)
-              (epoch_count |> Atomic.get)
-              ((tgroup.time_ideal |> Mtime.Span.to_float_ns) *. 1e-9) ;
-            (* todo: allow asynchronous sleep interruption if tgroup.thread_count < 1 for the tgroup of this thread *)
-            if tgroup.tgroup <> Tgroup.Group.authenticated_root then
-              let _ = Xapi_stdext_unix.Unixext.select [] [] [] delay_s in
-              ()
+            (* the delay is upperbounded to be no longer than the yield_interval *)
+            if until_next_global_slice > yield_interval then
+              Clock.Timer.span_to_s yield_interval
             else
-              let _ = Thread.yield () in
-              ()
-          )
+              Clock.Timer.span_to_s until_next_global_slice
+          in
+
+          is_to_sleep_or_yield delay_s
         )
 
   let _with_epoch_frequency_of ~every f =
@@ -152,7 +144,6 @@ module Runtime = struct
           (* reserve cpu time only to tgroups that have threads to run at the moment *)
           groups |> List.fold_left (fun xs x -> x.tgroup_share + xs) 0
         in
-        let debug = D.debug in
         (*with_epoch_frequency_of ~every:1000 |> fun _ -> D.debug in*)
         groups
         |> List.iter (fun g ->
@@ -176,18 +167,18 @@ module Runtime = struct
                in
                g.time_ideal <-
                  Mtime.Span.of_float_ns @@ thread_time_ideal |> Option.get ;
-               g.epoch <- Mtime_clock.now () ;
-               debug
-                 "runtime sched_global_slice: g.tgroup_name=%s \
-                  g.tgroup_share=%d g.thread_count=%d g.time_ideal=%f ns \
-                  epoch_count=%d group_share_ration=%f group_time_ns=%f \
-                  tgroup_total_share=%d"
-                 g.tgroup_name g.tgroup_share
-                 (g.thread_count |> Atomic.get)
-                 thread_time_ideal
-                 (epoch_count |> Atomic.get)
-                 group_share_ratio group_time_ns
-                 (Tgroup.ThreadGroup.tgroup_total_share |> Atomic.get)
+               g.epoch <- Mtime_clock.now ()
+               (* debug
+                  "runtime sched_global_slice: g.tgroup_name=%s \
+                   g.tgroup_share=%d g.thread_count=%d g.time_ideal=%f ns \
+                   epoch_count=%d group_share_ration=%f group_time_ns=%f \
+                   tgroup_total_share=%d"
+                  g.tgroup_name g.tgroup_share
+                  (g.thread_count |> Atomic.get)
+                  thread_time_ideal
+                  (epoch_count |> Atomic.get)
+                  group_share_ratio group_time_ns
+                  (Tgroup.ThreadGroup.tgroup_total_share |> Atomic.get) *)
            )
       )
     in
