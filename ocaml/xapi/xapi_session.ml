@@ -657,7 +657,15 @@ let login_no_password_common ~__context ~uname ~originator ~host ~pool
   Rbac_audit.session_create ~__context ~session_id ~uname ;
   (* At this point, the session is created, but with an incorrect time *)
   (* Force the time to be updated by calling an API function with this session *)
-  let rpc = Helpers.make_rpc ~__context in
+  let thread_storage =
+    Xapi_stdext_threads.Threadext.ThreadLocalStorage.get ()
+  in
+  let originator =
+    thread_storage.tgroup
+    |> Tgroup.Group.get_originator
+    |> Tgroup.Group.Originator.to_string
+  in
+  let rpc = Helpers.make_rpc' ~originator ~__context in
   ignore (Client.Pool.get_all ~rpc ~session_id) ;
   session_id
 

@@ -377,11 +377,12 @@ module ThreadGroup = struct
     |> List.find_opt (fun tg ->
            let g =
              match g with
-             | Group.Group Internal_SM
+             | Group.Group Internal_SM ->
+                 Group.authenticated_root
              | Group.Group Internal_CLI
              | Group.Group External_Intrapool
              | Group.Group External_Unauthenticated ->
-                 g
+                 Group Group.Internal_CLI
              | Group.Group (External_Authenticated _) ->
                  Group.authenticated_root
            in
