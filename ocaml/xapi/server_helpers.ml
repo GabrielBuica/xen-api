@@ -142,7 +142,7 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
         ~supports_async ~label ~http_req ~fd ()
     in
 
-    let tgroup = ref None in
+    (*let tgroup = ref None in
     Constants.when_tgroups_enabled (fun () ->
         let identity =
           try
@@ -173,7 +173,7 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
     Tgroup.ThreadGroup.with_one_thread_of_group_opt
       ~guard:(not !Constants.tgroups_enabled)
       !tgroup
-    @@ fun () ->
+    @@ fun () -> *)
     let sync () =
       let need_complete = not (Context.forwarded_task __context) in
       exec_with_context ~__context ~need_complete ~called_async
@@ -186,10 +186,10 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
       ignore
         (Thread.create
            (fun () ->
-             Tgroup.ThreadGroup.with_one_thread_of_group_opt
+             (*Tgroup.ThreadGroup.with_one_thread_of_group_opt
                ~guard:(not !Constants.tgroups_enabled)
                !tgroup
-             @@ fun () ->
+             @@ fun () -> *)
              exec_with_context ~__context ~need_complete ~called_async
                ?f_forward:forward_op ~marshaller op_fn
            )
