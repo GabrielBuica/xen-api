@@ -110,9 +110,8 @@ module ThreadLocalStorage = struct
 
   let thread_local_storage = Ambient_context_thread_local.Thread_local.create ()
 
-  let create () =
+  let create ?(thread_name = "") () =
     let ocaml_tid = Thread.self () |> Thread.id in
-    let thread_name = "" in
     let time_running = Mtime.Span.zero in
     let time_last_yield = Mtime_clock.counter () in
     let tepoch = Mtime_clock.now () in
@@ -134,29 +133,36 @@ module ThreadLocalStorage = struct
       thread_local_storage
 
   let set ?thread_name ?time_running ?time_last_yield ?tepoch ?tgroup () =
-    let tls = get () in
-    let tls =
-      Option.fold ~none:tls
-        ~some:(fun thread_name -> {tls with thread_name})
-        thread_name
-    in
-    let tls =
-      Option.fold ~none:tls
-        ~some:(fun time_running -> {tls with time_running})
-        time_running
-    in
-    let tls =
-      Option.fold ~none:tls
-        ~some:(fun time_last_yield -> {tls with time_last_yield})
-        time_last_yield
-    in
-    let tls =
-      Option.fold ~none:tls ~some:(fun tepoch -> {tls with tepoch}) tepoch
-    in
-    let tls =
-      Option.fold ~none:tls ~some:(fun tgroup -> {tls with tgroup}) tgroup
-    in
-    Ambient_context_thread_local.Thread_local.set thread_local_storage tls
+    let f none some = Option.fold ~none ~some in
+    get ()
+    |> (fun v -> f v (fun x -> {v with thread_name= x}) thread_name)
+    |> (fun v -> f v (fun x -> {v with time_running= x}) time_running)
+    |> (fun v -> f v (fun x -> {v with time_last_yield= x}) time_last_yield)
+    |> (fun v -> f v (fun x -> {v with tepoch= x}) tepoch)
+    |> (fun v -> f v (fun x -> {v with tgroup= x}) tgroup)
+    (*let tls = get () in
+      let tls =
+        Option.fold ~none:tls
+          ~some:(fun thread_name -> {tls with thread_name})
+          thread_name
+      in
+      let tls =
+        Option.fold ~none:tls
+          ~some:(fun time_running -> {tls with time_running})
+          time_running
+      in
+      let tls =
+        Option.fold ~none:tls
+          ~some:(fun time_last_yield -> {tls with time_last_yield})
+          time_last_yield
+      in
+      let tls =
+        Option.fold ~none:tls ~some:(fun tepoch -> {tls with tepoch}) tepoch
+      in
+      let tls =
+        Option.fold ~none:tls ~some:(fun tgroup -> {tls with tgroup}) tgroup
+      in*)
+    |> Ambient_context_thread_local.Thread_local.set thread_local_storage
 
   let remove () =
     Ambient_context_thread_local.Thread_local.remove thread_local_storage

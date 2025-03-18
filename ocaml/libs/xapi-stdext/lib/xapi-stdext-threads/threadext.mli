@@ -54,7 +54,7 @@ module ThreadLocalStorage : sig
     ; tgroup: Tgroup.Group.t
   }
 
-  val create : unit -> t
+  val create : ?thread_name:string -> unit -> t
   (** [create ()] creates and returns an initial thread local strorage for the
      current thread. *)
 
