@@ -200,10 +200,11 @@ let periodic_hook (_ : Gc.Memprof.allocation) =
   let () =
     try
       if !Constants.tgroups_enabled then
-        let () = with_elapsed_yield_interval Runtime.sched_global_slice in
+        let () = Runtime.sched_global_slice yield_interval in
         if not (am_i_holding_locks ()) then
           Runtime.maybe_thread_yield ()
       else
+        if not (am_i_holding_locks ()) then
         with_elapsed_yield_interval (fun _ -> Thread.yield ())
     with _ ->
       (* It is not safe to raise exceptions here, it'd require changing all code to be safe to asynchronous interrupts/exceptions,
