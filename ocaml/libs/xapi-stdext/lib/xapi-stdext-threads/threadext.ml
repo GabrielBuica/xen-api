@@ -140,28 +140,6 @@ module ThreadLocalStorage = struct
     |> (fun v -> f v (fun x -> {v with time_last_yield= x}) time_last_yield)
     |> (fun v -> f v (fun x -> {v with tepoch= x}) tepoch)
     |> (fun v -> f v (fun x -> {v with tgroup= x}) tgroup)
-    (*let tls = get () in
-      let tls =
-        Option.fold ~none:tls
-          ~some:(fun thread_name -> {tls with thread_name})
-          thread_name
-      in
-      let tls =
-        Option.fold ~none:tls
-          ~some:(fun time_running -> {tls with time_running})
-          time_running
-      in
-      let tls =
-        Option.fold ~none:tls
-          ~some:(fun time_last_yield -> {tls with time_last_yield})
-          time_last_yield
-      in
-      let tls =
-        Option.fold ~none:tls ~some:(fun tepoch -> {tls with tepoch}) tepoch
-      in
-      let tls =
-        Option.fold ~none:tls ~some:(fun tgroup -> {tls with tgroup}) tgroup
-      in*)
     |> Ambient_context_thread_local.Thread_local.set thread_local_storage
 
   let remove () =
