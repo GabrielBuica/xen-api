@@ -142,6 +142,9 @@ module ThreadLocalStorage = struct
     |> (fun v -> f v (fun x -> {v with tgroup= x}) tgroup)
     |> Ambient_context_thread_local.Thread_local.set thread_local_storage
 
+  let update fn tls =
+    fn tls |> Ambient_context_thread_local.Thread_local.set thread_local_storage
+
   let remove () =
     Ambient_context_thread_local.Thread_local.remove thread_local_storage
 end

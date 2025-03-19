@@ -72,6 +72,8 @@ module ThreadLocalStorage : sig
   (** [set ?thread_name ?time_running ?time_last_yield ?tepoch ?tgroup ()]
       updates the thread local storage based on the supplied arguments. *)
 
+  val update : (t -> t) -> t -> unit
+
   val remove : unit -> unit
   (** [remove ()] removes the thread local storage of the current thread. *)
 end

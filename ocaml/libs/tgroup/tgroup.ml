@@ -123,7 +123,7 @@ module Group = struct
     | Group Internal_SM ->
         315
     | Group Internal_CLI ->
-        50
+        5
     | Group External_Intrapool ->
         315
     | Group External_Unauthenticated ->
