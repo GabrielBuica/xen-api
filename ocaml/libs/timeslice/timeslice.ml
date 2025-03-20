@@ -40,6 +40,8 @@ let yield_interval = Atomic.make Mtime.Span.zero
 *)
 let last_yield = Atomic.make (Mtime_clock.counter ())
 
+let thread_last_yield = Atomic.make (Mtime_clock.counter ())
+
 let failures = Atomic.make 0
 
 let with_elapsed_yield_interval f =
@@ -52,7 +54,7 @@ let with_elapsed_yield_interval f =
 module Runtime = struct
   let epoch_count = Atomic.make 0
 
-  let maybe_thread_yield () =
+  let maybe_thread_yield ~global_slice_period =
     let open Xapi_stdext_threads.Threadext in
     let thread_ctx = ThreadLocalStorage.get () in
     thread_ctx.tgroup
@@ -65,7 +67,13 @@ module Runtime = struct
                thread_ctx.tepoch <- current_epoch
              else
                (* thread remembers how long it is  running  in the current epoch *)
-               let time_running = Mtime_clock.count (Atomic.get last_yield) in
+               let time_running_since_last_yield =
+                 Mtime_clock.count (Atomic.get thread_last_yield)
+               in
+               let time_running =
+                 Mtime.Span.add thread_ctx.time_running
+                   time_running_since_last_yield
+               in
                thread_ctx.time_running <- time_running
            ) ;
 
@@ -73,12 +81,14 @@ module Runtime = struct
              if delay_s > 0. then (
                Tgroup.ThreadGroup.with_one_fewer_thread_in_tgroup tgroup
                @@ fun () ->
+               (*todo: do not sleep if this is the last thread in the tgroup(s) *)
                if tgroup.tgroup = Tgroup.Group.authenticated_root then (
                  let now = Mtime_clock.counter () in
-                 Atomic.set last_yield now ; Thread.yield ()
+                 Atomic.set thread_last_yield now ;
+                 Thread.yield ()
                ) else
                  let now = Mtime_clock.counter () in
-                 Atomic.set last_yield now ;
+                 Atomic.set thread_last_yield now ;
                  let _ = Xapi_stdext_unix.Unixext.select [] [] [] delay_s in
                  ()
              )
@@ -89,32 +99,29 @@ module Runtime = struct
            if
              Clock.Timer.span_is_longer thread_ctx.time_running
                ~than:tgroup.time_ideal
-           then (
-             let yield_interval = Atomic.get yield_interval in
-
+           then
              let since_last_global_slice =
                Mtime_clock.count (last_yield |> Atomic.get)
              in
              let until_next_global_slice =
-               Mtime.Span.abs_diff yield_interval since_last_global_slice
+               Mtime.Span.abs_diff global_slice_period since_last_global_slice
              in
-             let delay_s =
+             let thread_delay_s =
                (* the delay is upperbounded to be no longer than the yield_interval *)
-               if until_next_global_slice > yield_interval then
-                 Clock.Timer.span_to_s yield_interval
+               if until_next_global_slice > global_slice_period then
+                 Clock.Timer.span_to_s global_slice_period
                else
                  Clock.Timer.span_to_s until_next_global_slice
              in
 
-             is_to_sleep_or_yield delay_s
-           )
+             is_to_sleep_or_yield thread_delay_s
        )
 
   let _with_epoch_frequency_of ~every f =
     let epoch_count = epoch_count |> Atomic.get in
     if epoch_count mod every = 0 then f epoch_count
 
-  let sched_global_slice global_slice_time =
+  let sched_global_slice ~global_slice_period =
     Atomic.incr epoch_count ;
 
     (* goal is to recalculate thread.time_ideal for each thread: *)
@@ -144,7 +151,7 @@ module Runtime = struct
                in
                let group_time_ns =
                  group_share_ratio
-                 *. (global_slice_time |> Atomic.get |> Mtime.Span.to_float_ns)
+                 *. (global_slice_period |> Mtime.Span.to_float_ns)
                in
                let thread_time_ideal =
                  match g.thread_count |> Atomic.get with
@@ -201,10 +208,14 @@ let periodic_hook (_ : Gc.Memprof.allocation) =
         then (
           let now = Mtime_clock.counter () in
           Atomic.set last_yield now ;
-          let () = Runtime.sched_global_slice yield_interval in
+          let () =
+            Runtime.sched_global_slice
+              ~global_slice_period:(Atomic.get yield_interval)
+          in
           Thread.yield ()
         ) else
-          Runtime.maybe_thread_yield ()
+          Runtime.maybe_thread_yield
+            ~global_slice_period:(Atomic.get yield_interval)
     with _ ->
       (* It is not safe to raise exceptions here, it'd require changing all code to be safe to asynchronous interrupts/exceptions,
          see https://guillaume.munch.name/software/ocaml/memprof-limits/index.html#isolation
