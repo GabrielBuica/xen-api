@@ -143,37 +143,37 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
     in
 
     (*let tgroup = ref None in
-    Constants.when_tgroups_enabled (fun () ->
-        let identity =
-          try
-            Option.map
-              (fun session_id ->
-                let subject =
-                  Db.Session.get_auth_user_sid ~__context ~self:session_id
-                in
-                Tgroup.Group.Identity.make ?user_agent:http_req.user_agent
-                  subject
-              )
-              ( if !Xapi_globs.slave_emergency_mode then
-                  (* in emergency mode we cannot reach the coordinator,
-                     and we must not attempt to make Db calls
-                  *)
-                  None
-                else
-                  session_id
-              )
-          with _ -> None
-        in
-        let group =
-          Tgroup.of_creator (Tgroup.Group.Creator.make ?identity ())
-        in
-        tgroup := Some group
-    ) ;
+      Constants.when_tgroups_enabled (fun () ->
+          let identity =
+            try
+              Option.map
+                (fun session_id ->
+                  let subject =
+                    Db.Session.get_auth_user_sid ~__context ~self:session_id
+                  in
+                  Tgroup.Group.Identity.make ?user_agent:http_req.user_agent
+                    subject
+                )
+                ( if !Xapi_globs.slave_emergency_mode then
+                    (* in emergency mode we cannot reach the coordinator,
+                       and we must not attempt to make Db calls
+                    *)
+                    None
+                  else
+                    session_id
+                )
+            with _ -> None
+          in
+          let group =
+            Tgroup.of_creator (Tgroup.Group.Creator.make ?identity ())
+          in
+          tgroup := Some group
+      ) ;
 
-    Tgroup.ThreadGroup.with_one_thread_of_group_opt
-      ~guard:(not !Constants.tgroups_enabled)
-      !tgroup
-    @@ fun () -> *)
+      Tgroup.ThreadGroup.with_one_thread_of_group_opt
+        ~guard:(not !Constants.tgroups_enabled)
+        !tgroup
+      @@ fun () -> *)
     let sync () =
       let need_complete = not (Context.forwarded_task __context) in
       exec_with_context ~__context ~need_complete ~called_async
@@ -187,9 +187,9 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
         (Thread.create
            (fun () ->
              (*Tgroup.ThreadGroup.with_one_thread_of_group_opt
-               ~guard:(not !Constants.tgroups_enabled)
-               !tgroup
-             @@ fun () -> *)
+                 ~guard:(not !Constants.tgroups_enabled)
+                 !tgroup
+               @@ fun () -> *)
              exec_with_context ~__context ~need_complete ~called_async
                ?f_forward:forward_op ~marshaller op_fn
            )

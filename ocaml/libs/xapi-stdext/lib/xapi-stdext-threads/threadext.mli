@@ -48,9 +48,9 @@ module ThreadLocalStorage : sig
   type t = {
       ocaml_tid: int
     ; thread_name: string
-    ; time_running: Mtime.span
-    ; time_last_yield: Mtime_clock.counter
-    ; tepoch: Mtime.t
+    ; mutable time_running: Mtime.span
+    ; mutable time_last_yield: Mtime_clock.counter
+    ; mutable tepoch: int
     ; tgroup: Tgroup.Group.t
   }
 
@@ -65,7 +65,7 @@ module ThreadLocalStorage : sig
        ?thread_name:string
     -> ?time_running:Mtime.span
     -> ?time_last_yield:Mtime_clock.counter
-    -> ?tepoch:Mtime.t
+    -> ?tepoch:int
     -> ?tgroup:Tgroup.Group.t
     -> unit
     -> unit

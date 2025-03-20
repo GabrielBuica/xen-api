@@ -394,13 +394,6 @@ module ThreadGroup = struct
   let thread_stops_in_tgroup tg = Atomic.decr tg.thread_count
 
   let with_one_thread_in_tgroup tg f =
-    D.debug
-      "with_one_thread_in_tgroup: tgroups.len=%d tg.name=%s tg.share=%d \
-       tg.thread_count=%d tg.time_ideal=%f"
-      (List.length (tgroups ()))
-      tg.tgroup_name tg.tgroup_share
-      (tg.thread_count |> Atomic.get)
-      ((tg.time_ideal |> Mtime.Span.to_float_ns) /. 1e9) ;
     thread_starts_in_tgroup tg ;
     Xapi_stdext_pervasives.Pervasiveext.finally f (fun () ->
         thread_stops_in_tgroup tg

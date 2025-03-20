@@ -102,9 +102,9 @@ module ThreadLocalStorage = struct
   type t = {
       ocaml_tid: int
     ; thread_name: string
-    ; time_running: Mtime.span
-    ; time_last_yield: Mtime_clock.counter
-    ; tepoch: Mtime.t
+    ; mutable time_running: Mtime.span
+    ; mutable time_last_yield: Mtime_clock.counter
+    ; mutable tepoch: int
     ; tgroup: Tgroup.Group.t
   }
 
@@ -114,7 +114,7 @@ module ThreadLocalStorage = struct
     let ocaml_tid = Thread.self () |> Thread.id in
     let time_running = Mtime.Span.zero in
     let time_last_yield = Mtime_clock.counter () in
-    let tepoch = Mtime_clock.now () in
+    let tepoch = 0 in
     let tgroup =
       Tgroup.Group.(
         of_creator (Creator.make ~identity:Identity.root_identity ())
