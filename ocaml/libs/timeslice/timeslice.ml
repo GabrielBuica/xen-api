@@ -199,7 +199,7 @@ end
 let periodic_hook (_ : Gc.Memprof.allocation) =
   let () =
     try
-      if !Constants.tgroups_enabled then
+      if !Constants.runtime_sched && !Constants.tgroups_enabled then
         let () = Runtime.sched_global_slice yield_interval in
         if not (am_i_holding_locks ()) then
           Runtime.maybe_thread_yield ()
