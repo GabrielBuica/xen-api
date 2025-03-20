@@ -78,12 +78,11 @@ module Runtime = struct
             Tgroup.ThreadGroup.with_one_fewer_thread_in_tgroup tgroup
             @@ fun () ->
             D.debug
-               "runtime: sleep=%f s: thread_name=%s \
-                time_running=%f s g.tgroup_name=%s g.tgroup_share=%d \
+               "runtime: sleep=%f us: \
+                time_running=%f us g.tgroup_name=%s g.tgroup_share=%d \
                 g.thread_count=%d epoch_count=%d tgroup_ideal=%f"
-               delay_s
-               (Thread.self () |> Thread.id |> string_of_int)
-               (Clock.Timer.span_to_s thread_ctx.time_running )
+               (delay_s *. 1_000_000.)
+               (Clock.Timer.span_to_s thread_ctx.time_running *. 1_000_000. )
                tgroup.tgroup_name tgroup.tgroup_share
                (tgroup.thread_count |> Atomic.get)
                (epoch_count |> Atomic.get)
@@ -167,17 +166,17 @@ module Runtime = struct
                in
                g.time_ideal <-
                  Mtime.Span.of_float_ns @@ thread_time_ideal |> Option.get ;
-        g.epoch <- Mtime_clock.now () ;
+               g.epoch <- Mtime_clock.now () ;
                D.debug
                   "runtime sched_global_slice: g.tgroup_name=%s \
-                   g.tgroup_share=%d g.thread_count=%d g.time_ideal=%f ns \
-                   epoch_count=%d group_share_ration=%f group_time_ns=%f \
+                   g.tgroup_share=%d g.thread_count=%d g.time_ideal=%f us \
+                   epoch_count=%d group_share_ration=%f group_time=%f us \
                    tgroup_total_share=%d"
                   g.tgroup_name g.tgroup_share
                   (g.thread_count |> Atomic.get)
-                  thread_time_ideal
+                  (thread_time_ideal *. 0.001)
                   (epoch_count |> Atomic.get)
-                  group_share_ratio group_time_ns
+                  group_share_ratio (group_time_ns *. 0.001)
                   (Tgroup.ThreadGroup.tgroup_total_share |> Atomic.get)
            )
       )
