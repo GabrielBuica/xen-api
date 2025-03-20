@@ -77,7 +77,7 @@ module Runtime = struct
           if delay_s > 0. then
             Tgroup.ThreadGroup.with_one_fewer_thread_in_tgroup tgroup
             @@ fun () ->
-            (* D.debug
+            D.debug
                "runtime: sleep=%f s: thread_name=%s \
                 time_running=%f s g.tgroup_name=%s g.tgroup_share=%d \
                 g.thread_count=%d epoch_count=%d tgroup_ideal=%f"
@@ -87,7 +87,7 @@ module Runtime = struct
                tgroup.tgroup_name tgroup.tgroup_share
                (tgroup.thread_count |> Atomic.get)
                (epoch_count |> Atomic.get)
-               (Clock.Timer.span_to_s tgroup.time_ideal ); *)
+               (Clock.Timer.span_to_s tgroup.time_ideal );
             if tgroup.tgroup <> Tgroup.Group.authenticated_root then
               let _ = Xapi_stdext_unix.Unixext.select [] [] [] delay_s in
               ()
@@ -167,8 +167,8 @@ module Runtime = struct
                in
                g.time_ideal <-
                  Mtime.Span.of_float_ns @@ thread_time_ideal |> Option.get ;
-               g.epoch <- Mtime_clock.now ()
-               (* debug
+        g.epoch <- Mtime_clock.now () ;
+               D.debug
                   "runtime sched_global_slice: g.tgroup_name=%s \
                    g.tgroup_share=%d g.thread_count=%d g.time_ideal=%f ns \
                    epoch_count=%d group_share_ration=%f group_time_ns=%f \
@@ -178,7 +178,7 @@ module Runtime = struct
                   thread_time_ideal
                   (epoch_count |> Atomic.get)
                   group_share_ratio group_time_ns
-                  (Tgroup.ThreadGroup.tgroup_total_share |> Atomic.get) *)
+                  (Tgroup.ThreadGroup.tgroup_total_share |> Atomic.get)
            )
       )
     in
