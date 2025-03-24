@@ -51,6 +51,11 @@ let with_elapsed_yield_interval f =
     Atomic.set last_yield now ; f yield_interval
   )
 
+let with_time_counter_now time_counter f =
+  let now = Mtime_clock.counter () in
+  Atomic.set time_counter now ;
+  f ()
+
 module Runtime = struct
   let epoch_count = Atomic.make 0
 
@@ -78,20 +83,17 @@ module Runtime = struct
            ) ;
 
            let is_to_sleep_or_yield delay_s =
-             if delay_s > 0. then (
+             if delay_s > 0. then
                Tgroup.ThreadGroup.with_one_fewer_thread_in_tgroup tgroup
                @@ fun () ->
                (*todo: do not sleep if this is the last thread in the tgroup(s) *)
-               if tgroup.tgroup = Tgroup.Group.authenticated_root then (
-                 let now = Mtime_clock.counter () in
-                 Atomic.set thread_last_yield now ;
-                 Thread.yield ()
-               ) else
-                 let now = Mtime_clock.counter () in
-                 Atomic.set thread_last_yield now ;
-                 let _ = Xapi_stdext_unix.Unixext.select [] [] [] delay_s in
-                 ()
-             )
+               if tgroup.tgroup = Tgroup.Group.authenticated_root then
+                 with_time_counter_now thread_last_yield Thread.yield
+               else
+                 with_time_counter_now thread_last_yield (fun () ->
+                     let _ = Xapi_stdext_unix.Unixext.select [] [] [] delay_s in
+                     ()
+                 )
            in
 
            (* fair scheduling decision to check if thread time_running has exceeded
@@ -180,40 +182,21 @@ module Runtime = struct
     tgroups_with_threads |> time_ideal_of_tgroups
 end
 
-(* let periodic_hook (_ : Gc.Memprof.allocation) =
-   let () =
-     try
-       if !Constants.runtime_sched && !Constants.tgroups_enabled then
-         let () = Runtime.sched_global_slice yield_interval in
-         if not (am_i_holding_locks ()) then
-           Runtime.maybe_thread_yield ()
-       else
-         if not (am_i_holding_locks ()) then
-         with_elapsed_yield_interval (fun _ -> Thread.yield ())
-     with _ ->
-       (* It is not safe to raise exceptions here, it'd require changing all code to be safe to asynchronous interrupts/exceptions,
-          see https://guillaume.munch.name/software/ocaml/memprof-limits/index.html#isolation
-          Because this is just a performance optimization, we fall back to safe behaviour: do nothing, and just keep track that we failed
-       *)
-       Atomic.incr failures
-   in
-   None *)
-
 let periodic_hook (_ : Gc.Memprof.allocation) =
   let () =
     try
       if not (am_i_holding_locks ()) then
         let elapsed = Mtime_clock.count (Atomic.get last_yield) in
         if Clock.Timer.span_is_longer elapsed ~than:(Atomic.get yield_interval)
-        then (
-          let now = Mtime_clock.counter () in
-          Atomic.set last_yield now ;
-          let () =
-            Runtime.sched_global_slice
-              ~global_slice_period:(Atomic.get yield_interval)
-          in
-          Thread.yield ()
-        ) else
+        then
+          with_time_counter_now last_yield (fun () ->
+              let () =
+                Runtime.sched_global_slice
+                  ~global_slice_period:(Atomic.get yield_interval)
+              in
+              Thread.yield ()
+          )
+        else
           Runtime.maybe_thread_yield
             ~global_slice_period:(Atomic.get yield_interval)
     with _ ->
