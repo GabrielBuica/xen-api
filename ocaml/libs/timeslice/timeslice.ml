@@ -76,9 +76,20 @@ module Runtime = struct
            ) ;
 
            let is_to_sleep_or_yield delay_s =
-             if delay_s > 0. then
+             if delay_s > 0. then (
                Tgroup.ThreadGroup.with_one_fewer_thread_in_tgroup tgroup
                @@ fun () ->
+               D.debug
+                 "runtime: sleep=%f s: thread_name=%s time_running=%f s \
+                  g.tgroup_name=%s g.tgroup_share=%d g.thread_count=%d \
+                  epoch_count=%d tgroup_ideal=%f"
+                 delay_s
+                 (Thread.self () |> Thread.id |> string_of_int)
+                 (Clock.Timer.span_to_s thread_ctx.time_running)
+                 tgroup.tgroup_name tgroup.tgroup_share
+                 (tgroup.thread_count |> Atomic.get)
+                 (epoch_count |> Atomic.get)
+                 (Clock.Timer.span_to_s tgroup.time_ideal) ;
                (*todo: do not sleep if this is the last thread in the tgroup(s) *)
                if tgroup.tgroup = Tgroup.Group.authenticated_root then
                  with_time_counter_now thread_last_yield Thread.yield
@@ -87,6 +98,7 @@ module Runtime = struct
                      let _ = Xapi_stdext_unix.Unixext.select [] [] [] delay_s in
                      ()
                  )
+             )
            in
 
            (* fair scheduling decision to check if thread time_running has exceeded
@@ -161,7 +173,18 @@ module Runtime = struct
                      group_time_ns /. (gnt |> float_of_int)
                in
                g.time_ideal <-
-                 Mtime.Span.of_float_ns @@ thread_time_ideal |> Option.get
+                 Mtime.Span.of_float_ns @@ thread_time_ideal |> Option.get ;
+               D.debug
+                 "runtime sched_global_slice: g.tgroup_name=%s \
+                  g.tgroup_share=%d g.thread_count=%d g.time_ideal=%f ns \
+                  epoch_count=%d group_share_ration=%f group_time_ns=%f \
+                  tgroup_total_share=%d"
+                 g.tgroup_name g.tgroup_share
+                 (g.thread_count |> Atomic.get)
+                 thread_time_ideal
+                 (epoch_count |> Atomic.get)
+                 group_share_ratio group_time_ns
+                 (Tgroup.ThreadGroup.tgroup_total_share |> Atomic.get)
            )
       )
     in
