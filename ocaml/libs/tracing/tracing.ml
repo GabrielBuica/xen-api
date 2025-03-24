@@ -357,7 +357,7 @@ module Span = struct
         try Pthread.get_cgroup () with _ -> Printexc.get_backtrace ()
       in
       let thread_ctx =
-        Xapi_stdext_threads.Threadext.ThreadLocalStorage.get ()
+        Xapi_stdext_threads.Threadext.ThreadRuntimeContext.get ()
       in
       attributes
       |> Attributes.add "ocaml.tid" tid
