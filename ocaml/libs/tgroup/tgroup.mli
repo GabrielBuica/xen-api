@@ -108,7 +108,6 @@ module ThreadGroup : sig
     ; mutable tgroup_share: int
     ; mutable thread_count: int Atomic.t
     ; mutable time_ideal: Mtime.span
-    ; mutable epoch: Mtime.t
   }
 
   type t = tgroup option

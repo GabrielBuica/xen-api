@@ -329,9 +329,8 @@ module ThreadGroup = struct
       mutable tgroup: Group.t
     ; mutable tgroup_name: string
     ; mutable tgroup_share: int
-    ; mutable thread_count: int Atomic.t (* updated by threads in tgroup *)
+    ; mutable thread_count: int Atomic.t
     ; mutable time_ideal: Mtime.span
-    ; mutable epoch: Mtime.t
   }
 
   type t = tgroup option
@@ -347,7 +346,6 @@ module ThreadGroup = struct
     ; tgroup_share= tgroup |> Group.get_share
     ; thread_count= Atomic.make 0
     ; time_ideal= Mtime.Span.zero
-    ; epoch= Mtime_clock.now ()
     }
 
   let add tgroup =
@@ -362,8 +360,7 @@ module ThreadGroup = struct
         )
     do
       () (* todo: raise exception after n unsuccessful attempts *)
-    done ;
-    tgroup.epoch <- Mtime_clock.now ()
+    done
 
   let tgroups () =
     tgroups

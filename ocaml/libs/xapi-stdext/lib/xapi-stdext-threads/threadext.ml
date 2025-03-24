@@ -103,7 +103,6 @@ module ThreadLocalStorage = struct
       ocaml_tid: int
     ; thread_name: string
     ; mutable time_running: Mtime.span
-    ; mutable time_last_yield: Mtime_clock.counter
     ; mutable tepoch: int
     ; tgroup: Tgroup.Group.t
   }
@@ -113,16 +112,13 @@ module ThreadLocalStorage = struct
   let create ?(thread_name = "") () =
     let ocaml_tid = Thread.self () |> Thread.id in
     let time_running = Mtime.Span.zero in
-    let time_last_yield = Mtime_clock.counter () in
     let tepoch = 0 in
     let tgroup =
       Tgroup.Group.(
         of_creator (Creator.make ~identity:Identity.root_identity ())
       )
     in
-    let tls =
-      {thread_name; tgroup; ocaml_tid; time_running; time_last_yield; tepoch}
-    in
+    let tls = {thread_name; tgroup; ocaml_tid; time_running; tepoch} in
     let () =
       Ambient_context_thread_local.Thread_local.set thread_local_storage tls
     in
@@ -132,18 +128,19 @@ module ThreadLocalStorage = struct
     Ambient_context_thread_local.Thread_local.get_or_create ~create
       thread_local_storage
 
-  let set ?thread_name ?time_running ?time_last_yield ?tepoch ?tgroup () =
+  let set ?thread_name ?time_running ?tepoch ?tgroup () =
     let f none some = Option.fold ~none ~some in
     get ()
     |> (fun v -> f v (fun x -> {v with thread_name= x}) thread_name)
     |> (fun v -> f v (fun x -> {v with time_running= x}) time_running)
-    |> (fun v -> f v (fun x -> {v with time_last_yield= x}) time_last_yield)
     |> (fun v -> f v (fun x -> {v with tepoch= x}) tepoch)
     |> (fun v -> f v (fun x -> {v with tgroup= x}) tgroup)
     |> Ambient_context_thread_local.Thread_local.set thread_local_storage
 
-  let update fn tls =
-    fn tls |> Ambient_context_thread_local.Thread_local.set thread_local_storage
+  let update f tls =
+    tls
+    |> f
+    |> Ambient_context_thread_local.Thread_local.set thread_local_storage
 
   let remove () =
     Ambient_context_thread_local.Thread_local.remove thread_local_storage

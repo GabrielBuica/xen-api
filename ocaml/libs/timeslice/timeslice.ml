@@ -44,13 +44,6 @@ let thread_last_yield = Atomic.make (Mtime_clock.counter ())
 
 let failures = Atomic.make 0
 
-let with_elapsed_yield_interval f =
-  let elapsed = Mtime_clock.count (Atomic.get last_yield) in
-  if Clock.Timer.span_is_longer elapsed ~than:(Atomic.get yield_interval) then (
-    let now = Mtime_clock.counter () in
-    Atomic.set last_yield now ; f yield_interval
-  )
-
 let with_time_counter_now time_counter f =
   let now = Mtime_clock.counter () in
   Atomic.set time_counter now ;
@@ -168,8 +161,7 @@ module Runtime = struct
                      group_time_ns /. (gnt |> float_of_int)
                in
                g.time_ideal <-
-                 Mtime.Span.of_float_ns @@ thread_time_ideal |> Option.get ;
-               g.epoch <- Mtime_clock.now ()
+                 Mtime.Span.of_float_ns @@ thread_time_ideal |> Option.get
            )
       )
     in
