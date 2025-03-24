@@ -66,7 +66,7 @@ module Runtime = struct
     |> Tgroup.ThreadGroup.get_tgroup
     |> Option.iter (fun (tgroup : Tgroup.ThreadGroup.tgroup) ->
            let current_epoch = Atomic.get epoch_count in
-           ( if current_epoch > thread_ctx.tepoch then
+           ( if current_epoch <> thread_ctx.tepoch then
                (* thread remembers that it is about to run in a new epoch *)
                let () = thread_ctx.time_running <- Mtime.Span.zero in
                thread_ctx.tepoch <- current_epoch
@@ -119,12 +119,17 @@ module Runtime = struct
              is_to_sleep_or_yield thread_delay_s
        )
 
-  let _with_epoch_frequency_of ~every f =
-    let epoch_count = epoch_count |> Atomic.get in
-    if epoch_count mod every = 0 then f epoch_count
+  let incr_epoch ~frequency =
+    let epoch = epoch_count |> Atomic.get in
+    if epoch mod frequency = 0 then
+      Atomic.set epoch_count 1
+    else
+      Atomic.incr epoch_count
 
   let sched_global_slice ~global_slice_period =
-    Atomic.incr epoch_count ;
+    incr_epoch ~frequency:1024 ;
+
+    (*roughly every 10s for timeslices of 10ms*)
 
     (* goal is to recalculate thread.time_ideal for each thread: *)
     (* 1) fairness: each thread group get the same amount of time inside the slice  *)
@@ -185,20 +190,18 @@ end
 let periodic_hook (_ : Gc.Memprof.allocation) =
   let () =
     try
+      let yield_interval = Atomic.get yield_interval in
       if not (am_i_holding_locks ()) then
         let elapsed = Mtime_clock.count (Atomic.get last_yield) in
-        if Clock.Timer.span_is_longer elapsed ~than:(Atomic.get yield_interval)
-        then
+        if Clock.Timer.span_is_longer elapsed ~than:yield_interval then
           with_time_counter_now last_yield (fun () ->
               let () =
-                Runtime.sched_global_slice
-                  ~global_slice_period:(Atomic.get yield_interval)
+                Runtime.sched_global_slice ~global_slice_period:yield_interval
               in
               Thread.yield ()
           )
         else
-          Runtime.maybe_thread_yield
-            ~global_slice_period:(Atomic.get yield_interval)
+          Runtime.maybe_thread_yield ~global_slice_period:yield_interval
     with _ ->
       (* It is not safe to raise exceptions here, it'd require changing all code to be safe to asynchronous interrupts/exceptions,
          see https://guillaume.munch.name/software/ocaml/memprof-limits/index.html#isolation
