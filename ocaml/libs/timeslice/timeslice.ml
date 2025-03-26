@@ -122,6 +122,9 @@ module Runtime = struct
              in
 
              is_to_sleep_or_yield thread_delay_s
+          else
+            D.debug "runtime keep_going epoch_count:%d thread_name:%s"
+          (Atomic.get epoch_count) (thread_ctx.ocaml_tid |> string_of_int)
        )
 
   let incr_epoch ~frequency =
@@ -132,9 +135,8 @@ module Runtime = struct
       Atomic.incr epoch_count
 
   let sched_global_slice ~global_slice_period =
+    (*refresh the eopch counter roughly every 10s for timeslices of 10ms*)
     incr_epoch ~frequency:1024 ;
-
-    (*roughly every 10s for timeslices of 10ms*)
 
     (* goal is to recalculate thread.time_ideal for each thread: *)
     (* 1) fairness: each thread group get the same amount of time inside the slice  *)
@@ -151,7 +153,6 @@ module Runtime = struct
           (* reserve cpu time only to tgroups that have threads to run at the moment *)
           groups |> List.fold_left (fun xs x -> x.tgroup_share + xs) 0
         in
-        (*with_epoch_frequency_of ~every:1000 |> fun _ -> D.debug in*)
         groups
         |> List.iter (fun g ->
                let group_share_ratio =
