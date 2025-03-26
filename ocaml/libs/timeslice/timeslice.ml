@@ -173,18 +173,7 @@ module Runtime = struct
                      group_time_ns /. (gnt |> float_of_int)
                in
                g.time_ideal <-
-                 Mtime.Span.of_float_ns @@ thread_time_ideal |> Option.get ;
-               D.debug
-                 "runtime sched_global_slice: g.tgroup_name=%s \
-                  g.tgroup_share=%d g.thread_count=%d g.time_ideal=%f ns \
-                  epoch_count=%d group_share_ration=%f group_time_ns=%f \
-                  tgroup_total_share=%d"
-                 g.tgroup_name g.tgroup_share
-                 (g.thread_count |> Atomic.get)
-                 thread_time_ideal
-                 (epoch_count |> Atomic.get)
-                 group_share_ratio group_time_ns
-                 (Tgroup.ThreadGroup.tgroup_total_share |> Atomic.get)
+                 Mtime.Span.of_float_ns @@ thread_time_ideal |> Option.get
            )
       )
     in
@@ -210,10 +199,13 @@ let periodic_hook (_ : Gc.Memprof.allocation) =
         let elapsed = Mtime_clock.count (Atomic.get last_yield) in
         if Clock.Timer.span_is_longer elapsed ~than:yield_interval then
           with_time_counter_now last_yield (fun () ->
-              let () =
-                Runtime.sched_global_slice ~global_slice_period:yield_interval
-              in
-              Thread.yield ()
+              with_time_counter_now thread_last_yield (fun () ->
+                  let () =
+                    Runtime.sched_global_slice
+                      ~global_slice_period:yield_interval
+                  in
+                  Thread.yield ()
+              )
           )
         else
           Runtime.maybe_thread_yield ~global_slice_period:yield_interval
