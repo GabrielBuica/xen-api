@@ -142,6 +142,7 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
         ~supports_async ~label ~http_req ~fd ()
     in
 
+    (*todo: check if classification here is needed *)
     Constants.when_tgroups_enabled (fun () ->
         let identity =
           try
@@ -163,8 +164,14 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
               )
           with _ -> None
         in
-        let _ = Tgroup.of_creator (Tgroup.Group.Creator.make ?identity ()) in
-        ()
+        let tgroup =
+          Tgroup.of_creator (Tgroup.Group.Creator.make ?identity ())
+        in
+        let open Xapi_stdext_threads.Threadext in
+        ThreadRuntimeContext.get ()
+        |> ThreadRuntimeContext.update (fun thread_ctx ->
+               {thread_ctx with tgroup}
+           )
     ) ;
 
     let sync () =
