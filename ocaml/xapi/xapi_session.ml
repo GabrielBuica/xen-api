@@ -753,6 +753,11 @@ let slave_login_common ~__context ~host_str ~psecret =
       |> ThreadRuntimeContext.update (fun thread_ctx -> {thread_ctx with tgroup})
   ) ;
 
+  let thread_ctx = Xapi_stdext_threads.Threadext.ThreadRuntimeContext.get () in
+  Tgroup.ThreadGroup.with_one_thread_of_group
+    ~guard:(not !Constants.tgroups_enabled)
+    thread_ctx.tgroup
+  @@ fun () ->
   if not (Helpers.PoolSecret.is_authorized psecret) then (
     let msg = "Pool credentials invalid" in
     debug "Failed to authenticate slave %s: %s" host_str msg ;
@@ -960,6 +965,13 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
              )
       ) ;
 
+      let thread_ctx =
+        Xapi_stdext_threads.Threadext.ThreadRuntimeContext.get ()
+      in
+      Tgroup.ThreadGroup.with_one_thread_of_group
+        ~guard:(not !Constants.tgroups_enabled)
+        thread_ctx.tgroup
+      @@ fun () ->
       login_no_password_common ~__context ~uname:(Some uname) ~originator
         ~host:(Helpers.get_localhost ~__context)
         ~pool:false ~is_local_superuser:true ~subject:Ref.null ~auth_user_sid:""
@@ -1017,6 +1029,13 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
                  )
           ) ;
 
+          let thread_ctx =
+            Xapi_stdext_threads.Threadext.ThreadRuntimeContext.get ()
+          in
+          Tgroup.ThreadGroup.with_one_thread_of_group
+            ~guard:(not !Constants.tgroups_enabled)
+            thread_ctx.tgroup
+          @@ fun () ->
           login_no_password_common ~__context ~uname:(Some uname) ~originator
             ~host:(Helpers.get_localhost ~__context)
             ~pool:false ~is_local_superuser:true ~subject:Ref.null
@@ -1329,6 +1348,13 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
                      )
               ) ;
 
+              let thread_ctx =
+                Xapi_stdext_threads.Threadext.ThreadRuntimeContext.get ()
+              in
+              Tgroup.ThreadGroup.with_one_thread_of_group
+                ~guard:(not !Constants.tgroups_enabled)
+                thread_ctx.tgroup
+              @@ fun () ->
               login_no_password_common ~__context ~uname:(Some uname)
                 ~originator
                 ~host:(Helpers.get_localhost ~__context)

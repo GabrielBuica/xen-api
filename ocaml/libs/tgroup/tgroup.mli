@@ -99,6 +99,34 @@ module Cgroup : sig
       creator [c].*)
 end
 
+module ThreadGroup : sig
+  type tgroup = {
+      mutable tgroup: Group.t
+    ; mutable tgroup_name: string
+    ; mutable tgroup_share: int
+    ; mutable thread_count: int Atomic.t
+    ; mutable time_ideal: Mtime.span
+  }
+
+  type t = tgroup option
+
+  val tgroup_total_share : int Atomic.t
+
+  val tgroups : unit -> tgroup list
+
+  val get_tgroup : Group.t -> t
+
+  val create : tgroup:Group.t -> tgroup
+
+  val add : tgroup -> unit
+
+  val with_one_thread_in_tgroup : tgroup -> (unit -> 'a) -> 'a
+
+  val with_one_thread_of_group : ?guard:bool -> Group.t -> (unit -> 'a) -> 'a
+
+  val with_one_fewer_thread_in_tgroup : tgroup -> (unit -> 'a) -> 'a
+end
+
 val init : string -> unit
 (** [init dir] initializes the hierachy of cgroups and tgroups associated to
     all [Group.t] types under the directory [dir].*)

@@ -587,11 +587,18 @@ let handle_connection ~header_read_timeout ~header_total_timeout
                )
         )
     ) ;
-
+    let thread_ctx =
+      Xapi_stdext_threads.Threadext.ThreadRuntimeContext.get ()
+    in
     (* 2. now we attempt to process the request *)
     let finished =
       Option.fold ~none:true
-        ~some:(handle_one x ss x.Server.default_context)
+        ~some:(fun req ->
+          Tgroup.ThreadGroup.with_one_thread_of_group
+            ~guard:(not !Constants.tgroups_enabled)
+            thread_ctx.tgroup
+          @@ fun () -> handle_one x ss x.Server.default_context req
+        )
         req
     in
     (* 3. do it again if the connection is kept open, but without timeouts *)

@@ -173,7 +173,13 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
                {thread_ctx with tgroup}
            )
     ) ;
-
+    let thread_ctx =
+      Xapi_stdext_threads.Threadext.ThreadRuntimeContext.get ()
+    in
+    Tgroup.ThreadGroup.with_one_thread_of_group
+      ~guard:(not !Constants.tgroups_enabled)
+      thread_ctx.tgroup
+    @@ fun () ->
     let sync () =
       let need_complete = not (Context.forwarded_task __context) in
       exec_with_context ~__context ~need_complete ~called_async
