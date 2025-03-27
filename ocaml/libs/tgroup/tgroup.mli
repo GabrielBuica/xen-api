@@ -37,7 +37,7 @@ module Group : sig
 
     val of_string : string -> t
     (** [of_string s] creates an originator from a string [s].
-        
+
         e.g create an originator based on a http header. *)
 
     val to_string : t -> string
@@ -76,6 +76,10 @@ module Group : sig
 
   val to_string : t -> string
   (** [to_string g] returns the string representation of the group [g].*)
+
+  val authenticated_root : t
+  (** [authenticated_root] represents the main classification of internal xapi
+      threads. *)
 end
 
 (** [Cgroup] module encapsulates different function for managing the cgroups
@@ -86,22 +90,22 @@ module Cgroup : sig
 
   val dir_of : Group.t -> t option
   (** [dir_of group] returns the full path of the cgroup directory corresponding
-          to the group [group] as [Some dir].
-          
-          Returns [None] if [init dir] has not been called. *)
+      to the group [group] as [Some dir].
 
-  val init : string -> unit
-  (** [init dir] initializes the hierachy of cgroups associated to all [Group.t]
-          types under the directory [dir].*)
+      Returns [None] if [init dir] has not been called. *)
 
   val set_cgroup : Group.Creator.t -> unit
   (** [set_cgroup c] sets the current xapi thread in a cgroup based on the
-          creator [c].*)
+      creator [c].*)
 end
 
-val of_creator : Group.Creator.t -> unit
+val init : string -> unit
+(** [init dir] initializes the hierachy of cgroups and tgroups associated to
+    all [Group.t] types under the directory [dir].*)
+
+val of_creator : Group.Creator.t -> Group.t
 (** [of_creator g] classifies the current thread based based on the creator [c].*)
 
-val of_req_originator : string option -> unit
+val of_req_originator : string option -> Group.t option
 (** [of_req_originator o] same as [of_creator] but it classifies based on the
     http request header.*)
