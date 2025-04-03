@@ -362,6 +362,8 @@ module ThreadGroup = struct
       () (* todo: raise exception after n unsuccessful attempts *)
     done
 
+  let destroy () = Atomic.set tgroups (Array.make 0 None)
+
   let tgroups () =
     tgroups
     |> Atomic.get

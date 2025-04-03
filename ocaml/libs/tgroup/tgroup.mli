@@ -87,7 +87,7 @@ end
 module Cgroup : sig
   (** Represents one of the children of the cgroup directory.*)
   type t = string
-
+  val cgroup_dir : string option Atomic.t
   val dir_of : Group.t -> t option
   (** [dir_of group] returns the full path of the cgroup directory corresponding
       to the group [group] as [Some dir].
@@ -119,6 +119,8 @@ module ThreadGroup : sig
   val create : tgroup:Group.t -> tgroup
 
   val add : tgroup -> unit
+
+  val destroy : unit -> unit
 
   val with_one_thread_in_tgroup : tgroup -> (unit -> 'a) -> 'a
 

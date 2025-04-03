@@ -2,6 +2,7 @@
   (name xapi_timeslice)
   (package xapi-idl)
   (libraries
+    bechamel
     clock
     threads.posix
     tgroup
