@@ -102,7 +102,7 @@ module ThreadRuntimeContext = struct
   type t = {
       ocaml_tid: int
     ; thread_name: string
-    ; mutable time_running: Mtime.span
+    ; mutable time_running: int
     ; mutable tepoch: int
     ; tgroup: Tgroup.Group.t
   }
@@ -115,7 +115,7 @@ module ThreadRuntimeContext = struct
 
   let create ?(thread_name = "") () =
     let ocaml_tid = Thread.self () |> Thread.id in
-    let time_running = Mtime.Span.zero in
+    let time_running = 0 in
     let tepoch = 0 in
     let tgroup =
       Tgroup.Group.(

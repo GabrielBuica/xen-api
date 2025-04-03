@@ -87,7 +87,9 @@ end
 module Cgroup : sig
   (** Represents one of the children of the cgroup directory.*)
   type t = string
+
   val cgroup_dir : string option Atomic.t
+
   val dir_of : Group.t -> t option
   (** [dir_of group] returns the full path of the cgroup directory corresponding
       to the group [group] as [Some dir].
@@ -105,7 +107,7 @@ module ThreadGroup : sig
     ; mutable tgroup_name: string
     ; mutable tgroup_share: int
     ; mutable thread_count: int Atomic.t
-    ; mutable time_ideal: Mtime.span
+    ; mutable time_ideal: int
   }
 
   type t = tgroup option
@@ -126,7 +128,7 @@ module ThreadGroup : sig
 
   val with_one_thread_of_group : ?guard:bool -> Group.t -> (unit -> 'a) -> 'a
 
-  val with_one_fewer_thread_in_tgroup : tgroup -> (unit -> 'a) -> 'a
+  val with_one_fewer_thread_in_tgroup : tgroup -> (tgroup -> 'a) -> 'a
 end
 
 val init : string -> unit

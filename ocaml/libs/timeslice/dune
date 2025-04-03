@@ -2,7 +2,7 @@
   (name xapi_timeslice)
   (package xapi-idl)
   (libraries
-    bechamel
+    bechamel.monotonic_clock
     clock
     threads.posix
     tgroup

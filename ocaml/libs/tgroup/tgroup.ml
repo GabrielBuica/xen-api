@@ -330,7 +330,7 @@ module ThreadGroup = struct
     ; mutable tgroup_name: string
     ; mutable tgroup_share: int
     ; mutable thread_count: int Atomic.t
-    ; mutable time_ideal: Mtime.span
+    ; mutable time_ideal: int
   }
 
   type t = tgroup option
@@ -345,7 +345,7 @@ module ThreadGroup = struct
     ; tgroup_name= tgroup |> Group.to_string
     ; tgroup_share= tgroup |> Group.get_share
     ; thread_count= Atomic.make 0
-    ; time_ideal= Mtime.Span.zero
+    ; time_ideal= 0
     }
 
   let add tgroup =
@@ -403,9 +403,9 @@ module ThreadGroup = struct
       ()
     else
       thread_stops_in_tgroup tg ;
-    Xapi_stdext_pervasives.Pervasiveext.finally f (fun () ->
-        thread_starts_in_tgroup tg
-    )
+    Xapi_stdext_pervasives.Pervasiveext.finally
+      (fun () -> f tg)
+      (fun () -> thread_starts_in_tgroup tg)
 
   let with_one_thread_of_group ?(guard = true) group f =
     match (guard, get_tgroup group) with

@@ -48,7 +48,7 @@ module ThreadRuntimeContext : sig
   type t = {
       ocaml_tid: int
     ; thread_name: string
-    ; mutable time_running: Mtime.span
+    ; mutable time_running: int
     ; mutable tepoch: int
     ; tgroup: Tgroup.Group.t
   }
