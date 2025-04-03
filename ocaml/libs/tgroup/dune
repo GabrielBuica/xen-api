@@ -2,7 +2,7 @@
  (name tgroup)
  (modules tgroup)
  (public_name tgroup)
- (libraries mtime xapi-log xapi-stdext-pervasives xapi-stdext-unix xapi-stdext-std))
+ (libraries xapi-log xapi-stdext-pervasives xapi-stdext-unix xapi-stdext-std))
 
 (test
  (name test_tgroup)
