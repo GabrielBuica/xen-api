@@ -201,6 +201,7 @@ let periodic_hook (_ : Gc.Memprof.allocation) =
           let elapsed =
             (Monotonic_clock.now () |> Int64.to_int) - Atomic.get last_yield
           in
+          D.debug "periodic_hook: elapsed:%d" elapsed;
           if elapsed > yield_interval then (
             let now = Monotonic_clock.now () |> Int64.to_int in
             Atomic.set last_yield now ;
