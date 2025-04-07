@@ -3,14 +3,14 @@ open Bechamel
 let test_maybe_thread_yield () =
   Sys.opaque_identity
     (Xapi_timeslice.Timeslice.Runtime.maybe_thread_yield
-       ~global_slice_period: 10_000_000)
-
+       ~global_slice_period:10_000_000
+    )
 
 let test_sched_global_slice () =
   Sys.opaque_identity
     (Xapi_timeslice.Timeslice.Runtime.sched_global_slice
-       ~global_slice_period:10_000_000)
-
+       ~global_slice_period:10_000_000
+    )
 
 let test_tgroups_on ~name f =
   let allocate () =

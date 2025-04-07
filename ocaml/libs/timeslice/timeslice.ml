@@ -42,10 +42,10 @@ let thread_last_yield = Atomic.make 0
 
 let failures = Atomic.make 0
 
-let with_time_counter_now time_counter f =
+let[@inline always] with_time_counter_now time_counter f args =
   let now = Monotonic_clock.now () |> Int64.to_int in
   Atomic.set time_counter now ;
-  f ()
+  f args
 
 module Runtime = struct
   let epoch_count = Atomic.make 0
@@ -53,59 +53,58 @@ module Runtime = struct
   let maybe_thread_yield ~global_slice_period =
     let open Xapi_stdext_threads.Threadext in
     let thread_ctx = ThreadRuntimeContext.get () in
-    thread_ctx.tgroup
-    |> Tgroup.ThreadGroup.get_tgroup
-    |> Option.iter (fun (tgroup : Tgroup.ThreadGroup.tgroup) ->
-           let current_epoch = Atomic.get epoch_count in
-           ( if current_epoch <> thread_ctx.tepoch then
-               (* thread remembers that it is about to run in a new epoch *)
-               let () = thread_ctx.time_running <- 0 in
-               thread_ctx.tepoch <- current_epoch
-             else
-               (* thread remembers how long it is  running  in the current epoch *)
-               let time_running_since_last_yield =
-                 (Monotonic_clock.now () |> Int64.to_int)
-                 - Atomic.get thread_last_yield
-               in
-               let time_running =
-                 thread_ctx.time_running + time_running_since_last_yield
-               in
-               thread_ctx.time_running <- time_running
-           ) ;
+    let tgroup = thread_ctx.tgroup |> Tgroup.ThreadGroup.get_tgroup in
+    match tgroup with
+    | None ->
+        ()
+    | Some tgroup ->
+        let current_epoch = Atomic.get epoch_count in
+        ( if current_epoch <> thread_ctx.tepoch then
+            (* thread remembers that it is about to run in a new epoch *)
+            let () = thread_ctx.time_running <- 0 in
+            thread_ctx.tepoch <- current_epoch
+          else
+            (* thread remembers how long it is  running  in the current epoch *)
+            let time_running_since_last_yield =
+              (Monotonic_clock.now () |> Int64.to_int)
+              - Atomic.get thread_last_yield
+            in
+            let time_running =
+              thread_ctx.time_running + time_running_since_last_yield
+            in
+            thread_ctx.time_running <- time_running
+        ) ;
 
-           let sleep_or_yield sleep_time (tgroup : Tgroup.ThreadGroup.tgroup) =
-             (*todo: do not sleep if this is the last thread in the tgroup(s) *)
-             if tgroup.tgroup = Tgroup.Group.authenticated_root then
-               with_time_counter_now thread_last_yield Thread.yield
-             else
-               with_time_counter_now thread_last_yield (fun () ->
-                   Unix.sleepf sleep_time
-               )
-           in
-           let is_to_sleep_or_yield delay_s =
-             if delay_s > 0. then
-               Tgroup.ThreadGroup.with_one_fewer_thread_in_tgroup tgroup
-                 (sleep_or_yield delay_s)
-           in
+        let sleep_or_yield sleep_time (tgroup : Tgroup.ThreadGroup.tgroup) =
+          (*todo: do not sleep if this is the last thread in the tgroup(s) *)
+          if tgroup.tgroup = Tgroup.Group.authenticated_root then
+            with_time_counter_now thread_last_yield Thread.yield ()
+          else
+            with_time_counter_now thread_last_yield Unix.sleepf sleep_time
+        in
+        let is_to_sleep_or_yield delay_s =
+          if delay_s > 0. then
+            Tgroup.ThreadGroup.with_one_fewer_thread_in_tgroup tgroup
+              (sleep_or_yield delay_s)
+        in
 
-           (* fair scheduling decision to check if thread time_running has exceeded
-              tgroup-mandated ideal time per thread *)
-           if thread_ctx.time_running > tgroup.time_ideal then
-             let since_last_global_slice =
-               (Monotonic_clock.now () |> Int64.to_int) - Atomic.get last_yield
-             in
-             let until_next_global_slice =
-               if since_last_global_slice > global_slice_period then
-                 global_slice_period - since_last_global_slice
-               else
-                 0
-             in
-             let thread_delay_s =
-               (until_next_global_slice |> float_of_int) *. 1e-9
-             in
+        (* fair scheduling decision to check if thread time_running has exceeded
+           tgroup-mandated ideal time per thread *)
+        if thread_ctx.time_running > tgroup.time_ideal then
+          let since_last_global_slice =
+            (Monotonic_clock.now () |> Int64.to_int) - Atomic.get last_yield
+          in
+          let until_next_global_slice =
+            if since_last_global_slice > global_slice_period then
+              global_slice_period - since_last_global_slice
+            else
+              0
+          in
+          let thread_delay_s =
+            (until_next_global_slice |> float_of_int) *. 1e-9
+          in
 
-             is_to_sleep_or_yield thread_delay_s
-       )
+          is_to_sleep_or_yield thread_delay_s
 
   let incr_epoch ~frequency =
     let epoch = epoch_count |> Atomic.get in
@@ -171,30 +170,28 @@ end
 let periodic_hook (_ : Gc.Memprof.allocation) =
   let () =
     try
+      let yield_interval = Atomic.get yield_interval in
       if !Constants.tgroups_enabled && !Constants.runtime_sched then
-        let yield_interval = Atomic.get yield_interval in
         if not (am_i_holding_locks ()) then
           let elapsed =
             (Monotonic_clock.now () |> Int64.to_int) - Atomic.get last_yield
           in
-          if elapsed > yield_interval then
-            with_time_counter_now last_yield (fun () ->
-                with_time_counter_now thread_last_yield (fun () ->
-                    let () =
-                      Runtime.sched_global_slice
-                        ~global_slice_period:yield_interval
-                    in
-                    Thread.yield ()
-                )
-            )
-          else
+          if elapsed > yield_interval then (
+            let now = Monotonic_clock.now () |> Int64.to_int in
+            Atomic.set last_yield now ;
+            Atomic.set thread_last_yield now ;
+            Runtime.sched_global_slice ~global_slice_period:yield_interval ;
+            Thread.yield ()
+          ) else
             Runtime.maybe_thread_yield ~global_slice_period:yield_interval
-        else if not (am_i_holding_locks ()) then
-          let elapsed =
-            (Monotonic_clock.now () |> Int64.to_int) - Atomic.get last_yield
-          in
-          if elapsed > yield_interval then
-            with_time_counter_now last_yield Thread.yield
+        else
+          ()
+      else if not (am_i_holding_locks ()) then
+        let elapsed =
+          (Monotonic_clock.now () |> Int64.to_int) - Atomic.get last_yield
+        in
+        if elapsed > yield_interval then
+          with_time_counter_now last_yield Thread.yield ()
     with _ ->
       (* It is not safe to raise exceptions here, it'd require changing all code to be safe to asynchronous interrupts/exceptions,
          see https://guillaume.munch.name/software/ocaml/memprof-limits/index.html#isolation
