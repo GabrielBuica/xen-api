@@ -107,7 +107,7 @@ module Runtime = struct
             (Monotonic_clock.now () |> Int64.to_int) - Atomic.get last_yield
           in
           let until_next_global_slice =
-            if since_last_global_slice > global_slice_period then
+            if since_last_global_slice < global_slice_period then
               global_slice_period - since_last_global_slice
             else
               0
@@ -165,15 +165,17 @@ module Runtime = struct
                  "runtime sched_global_slice: g.tgroup_name=%s \
                   g.tgroup_share=%d g.thread_count=%d g.time_ideal=%f ns \
                   epoch_count=%d group_share_ration=%f group_time_ns=%f \
-                  tgroup_total_share=%d last_yield:%d thread_last_yield:%d
-                  yield_interval:%d"
-                 g.tgroup_name g.tgroup_share
+                  tgroup_total_share=%d last_yield:%d thread_last_yield:%d\n\
+                 \                  yield_interval:%d" g.tgroup_name
+                 g.tgroup_share
                  (g.thread_count |> Atomic.get)
                  thread_time_ideal
                  (epoch_count |> Atomic.get)
                  group_share_ratio group_time_ns
                  (Tgroup.ThreadGroup.tgroup_total_share |> Atomic.get)
-                  (Atomic.get last_yield) (Atomic.get thread_last_yield) (Atomic.get yield_interval)
+                 (Atomic.get last_yield)
+                 (Atomic.get thread_last_yield)
+                 (Atomic.get yield_interval)
            )
       )
     in
@@ -197,11 +199,11 @@ let periodic_hook (_ : Gc.Memprof.allocation) =
     try
       let yield_interval = Atomic.get yield_interval in
       if !Constants.tgroups_enabled && !Constants.runtime_sched then
-        if not (am_i_holding_locks ()) then
+        if not (am_i_holding_locks ()) then (
           let elapsed =
             (Monotonic_clock.now () |> Int64.to_int) - Atomic.get last_yield
           in
-          D.debug "periodic_hook: elapsed:%d" elapsed;
+          D.debug "periodic_hook: elapsed:%d" elapsed ;
           if elapsed > yield_interval then (
             let now = Monotonic_clock.now () |> Int64.to_int in
             Atomic.set last_yield now ;
@@ -210,7 +212,7 @@ let periodic_hook (_ : Gc.Memprof.allocation) =
             Thread.yield ()
           ) else
             Runtime.maybe_thread_yield ~global_slice_period:yield_interval
-        else
+        ) else
           ()
       else if not (am_i_holding_locks ()) then
         let elapsed =
