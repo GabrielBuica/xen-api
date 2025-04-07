@@ -13,6 +13,7 @@
  *)
 
 module D = Debug.Make (struct let name = "timeslice" end)
+
 (* avoid allocating an extra option every time *)
 let invalid_holder = -1
 
@@ -79,15 +80,15 @@ module Runtime = struct
         let sleep_or_yield sleep_time (tgroup : Tgroup.ThreadGroup.tgroup) =
           (*todo: do not sleep if this is the last thread in the tgroup(s) *)
           D.debug
-                 "runtime: sleep=%f s: thread_name=%s time_running=%d s \
-                  g.tgroup_name=%s g.tgroup_share=%d g.thread_count=%d \
-                  epoch_count=%d tgroup_ideal=%d" sleep_time
-                 (Thread.self () |> Thread.id |> string_of_int)
-                 thread_ctx.time_running
-                 tgroup.tgroup_name tgroup.tgroup_share
-                 (tgroup.thread_count |> Atomic.get)
-                 (epoch_count |> Atomic.get)
-                 tgroup.time_ideal ;
+            "runtime: sleep=%f s: thread_name=%s time_running=%d s \
+             g.tgroup_name=%s g.tgroup_share=%d g.thread_count=%d \
+             epoch_count=%d tgroup_ideal=%d"
+            sleep_time
+            (Thread.self () |> Thread.id |> string_of_int)
+            thread_ctx.time_running tgroup.tgroup_name tgroup.tgroup_share
+            (tgroup.thread_count |> Atomic.get)
+            (epoch_count |> Atomic.get)
+            tgroup.time_ideal ;
           if tgroup.tgroup = Tgroup.Group.authenticated_root then
             with_time_counter_now thread_last_yield Thread.yield ()
           else
@@ -159,18 +160,20 @@ module Runtime = struct
                  | gnt ->
                      group_time_ns /. (gnt |> float_of_int)
                in
-        g.time_ideal <- thread_time_ideal |> int_of_float;
+               g.time_ideal <- thread_time_ideal |> int_of_float ;
                D.debug
                  "runtime sched_global_slice: g.tgroup_name=%s \
                   g.tgroup_share=%d g.thread_count=%d g.time_ideal=%f ns \
                   epoch_count=%d group_share_ration=%f group_time_ns=%f \
-                  tgroup_total_share=%d"
+                  tgroup_total_share=%d last_yield:%d thread_last_yield:%d
+                  yield_interval:%d"
                  g.tgroup_name g.tgroup_share
                  (g.thread_count |> Atomic.get)
                  thread_time_ideal
                  (epoch_count |> Atomic.get)
                  group_share_ratio group_time_ns
                  (Tgroup.ThreadGroup.tgroup_total_share |> Atomic.get)
+                  (Atomic.get last_yield) (Atomic.get thread_last_yield) (Atomic.get yield_interval)
            )
       )
     in
