@@ -142,7 +142,6 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
         ~supports_async ~label ~http_req ~fd ()
     in
 
-    (*todo: check if classification here is needed *)
     Constants.when_tgroups_enabled (fun () ->
         let identity =
           try
@@ -168,10 +167,13 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
           Tgroup.of_creator (Tgroup.Group.Creator.make ?identity ())
         in
         let open Xapi_stdext_threads.Threadext in
-        ThreadRuntimeContext.get ()
-        |> ThreadRuntimeContext.update (fun thread_ctx ->
-               {thread_ctx with tgroup}
-           )
+        let thread_ctx = ThreadRuntimeContext.get () in
+        (* authenticated_root here should mean a group has not been set yet and
+           we should set one. otherwise go with what has already been set.*)
+        if thread_ctx.tgroup = Tgroup.Group.authenticated_root then
+          ThreadRuntimeContext.update
+            (fun thread_ctx -> {thread_ctx with tgroup})
+            thread_ctx
     ) ;
     let thread_ctx =
       Xapi_stdext_threads.Threadext.ThreadRuntimeContext.get ()
