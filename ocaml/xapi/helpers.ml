@@ -425,8 +425,21 @@ let make_rpc ~__context rpc : Rpc.response =
     else
       (JSONRPC_protocol.rpc, "/jsonrpc")
   in
+  let thread_ctx = Xapi_stdext_threads.Threadext.ThreadRuntimeContext.get () in
+  let originator =
+    thread_ctx.tgroup
+    |> Tgroup.Group.get_originator
+    |> Tgroup.Group.Originator.to_string
+  in
+
   let http = xmlrpc ~subtask_of ~version:"1.1" path in
   let http = TraceHelper.inject_span_into_req tracing http in
+  let http =
+    let additional_headers =
+      ("originator", originator) :: http.additional_headers
+    in
+    {http with additional_headers}
+  in
   let transport =
     if Pool_role.is_master () then
       Unix Xapi_globs.unix_domain_socket
