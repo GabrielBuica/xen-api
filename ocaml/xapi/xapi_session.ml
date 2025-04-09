@@ -749,8 +749,13 @@ let slave_login_common ~__context ~host_str ~psecret =
       let tgroup =
         Tgroup.of_creator (Tgroup.Group.Creator.make ~intrapool:true ())
       in
-      ThreadRuntimeContext.get ()
-      |> ThreadRuntimeContext.update (fun thread_ctx -> {thread_ctx with tgroup})
+      let thread_ctx = ThreadRuntimeContext.get () in
+      (* authenticated_root here should mean a group has not been set yet and
+         we should set one. otherwise go with what has already been set.*)
+      if thread_ctx.tgroup = Tgroup.Group.authenticated_root then
+        ThreadRuntimeContext.update
+          (fun thread_ctx -> {thread_ctx with tgroup})
+          thread_ctx
   ) ;
 
   let thread_ctx = Xapi_stdext_threads.Threadext.ThreadRuntimeContext.get () in
@@ -966,10 +971,13 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
                   Creator.make ~identity:Identity.root_identity ()
               )
           in
-          ThreadRuntimeContext.get ()
-          |> ThreadRuntimeContext.update (fun thread_ctx ->
-                 {thread_ctx with tgroup}
-             )
+          let thread_ctx = ThreadRuntimeContext.get () in
+          (* authenticated_root here should mean a group has not been set yet and
+             we should set one. otherwise go with what has already been set.*)
+          if thread_ctx.tgroup = Tgroup.Group.authenticated_root then
+            ThreadRuntimeContext.update
+              (fun thread_ctx -> {thread_ctx with tgroup})
+              thread_ctx
       ) ;
 
       let thread_ctx =
@@ -1037,10 +1045,13 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
                       Creator.make ~identity:Identity.root_identity ()
                   )
               in
-              ThreadRuntimeContext.get ()
-              |> ThreadRuntimeContext.update (fun thread_ctx ->
-                     {thread_ctx with tgroup}
-                 )
+              let thread_ctx = ThreadRuntimeContext.get () in
+              (* authenticated_root here should mean a group has not been set yet and
+                 we should set one. otherwise go with what has already been set.*)
+              if thread_ctx.tgroup = Tgroup.Group.authenticated_root then
+                ThreadRuntimeContext.update
+                  (fun thread_ctx -> {thread_ctx with tgroup})
+                  thread_ctx
           ) ;
 
           let thread_ctx =
@@ -1356,10 +1367,13 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
                           ()
                       )
                   in
-                  ThreadRuntimeContext.get ()
-                  |> ThreadRuntimeContext.update (fun thread_ctx ->
-                         {thread_ctx with tgroup}
-                     )
+                  let thread_ctx = ThreadRuntimeContext.get () in
+                  (* authenticated_root here should mean a group has not been set yet and
+                     we should set one. otherwise go with what has already been set.*)
+                  if thread_ctx.tgroup = Tgroup.Group.authenticated_root then
+                    ThreadRuntimeContext.update
+                      (fun thread_ctx -> {thread_ctx with tgroup})
+                      thread_ctx
               ) ;
 
               let thread_ctx =
