@@ -752,7 +752,10 @@ let slave_login_common ~__context ~host_str ~psecret =
       let thread_ctx = ThreadRuntimeContext.get () in
       (* authenticated_root here should mean a group has not been set yet and
          we should set one. otherwise go with what has already been set.*)
-      if thread_ctx.tgroup = Tgroup.Group.authenticated_root then
+      if
+        thread_ctx.tgroup = Tgroup.Group.authenticated_root
+        || thread_ctx.tgroup = Tgroup.Group.unauthenticated
+      then
         ThreadRuntimeContext.update
           (fun thread_ctx -> {thread_ctx with tgroup})
           thread_ctx
@@ -967,7 +970,10 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
           let thread_ctx = ThreadRuntimeContext.get () in
           (* authenticated_root here should mean a group has not been set yet and
              we should set one. otherwise go with what has already been set.*)
-          if thread_ctx.tgroup = Tgroup.Group.authenticated_root then
+          if
+            thread_ctx.tgroup = Tgroup.Group.authenticated_root
+            || thread_ctx.tgroup = Tgroup.Group.unauthenticated
+          then
             ThreadRuntimeContext.update
               (fun thread_ctx -> {thread_ctx with tgroup})
               thread_ctx
@@ -1034,7 +1040,10 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
               let thread_ctx = ThreadRuntimeContext.get () in
               (* authenticated_root here should mean a group has not been set yet and
                  we should set one. otherwise go with what has already been set.*)
-              if thread_ctx.tgroup = Tgroup.Group.authenticated_root then
+              if
+                thread_ctx.tgroup = Tgroup.Group.authenticated_root
+                || thread_ctx.tgroup = Tgroup.Group.unauthenticated
+              then
                 ThreadRuntimeContext.update
                   (fun thread_ctx -> {thread_ctx with tgroup})
                   thread_ctx
@@ -1356,7 +1365,10 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
                   let thread_ctx = ThreadRuntimeContext.get () in
                   (* authenticated_root here should mean a group has not been set yet and
                      we should set one. otherwise go with what has already been set.*)
-                  if thread_ctx.tgroup = Tgroup.Group.authenticated_root then
+                  if
+                    thread_ctx.tgroup = Tgroup.Group.authenticated_root
+                    || thread_ctx.tgroup = Tgroup.Group.unauthenticated
+                  then
                     ThreadRuntimeContext.update
                       (fun thread_ctx -> {thread_ctx with tgroup})
                       thread_ctx

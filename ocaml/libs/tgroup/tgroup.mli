@@ -80,6 +80,7 @@ module Group : sig
   val authenticated_root : t
   (** [authenticated_root] represents the main classification of internal xapi
       threads. *)
+  val unauthenticated : t
 end
 
 (** [Cgroup] module encapsulates different function for managing the cgroups

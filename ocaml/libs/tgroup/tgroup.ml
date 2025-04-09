@@ -268,6 +268,8 @@ module Group = struct
 
   let authenticated_root =
     of_creator (Creator.make ~identity:Identity.root_identity ())
+
+  let unauthenticated = Group External_Unauthenticated
 end
 
 module Cgroup = struct
