@@ -962,14 +962,7 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
           let open Xapi_stdext_threads.Threadext in
           let tgroup =
             Tgroup.of_creator
-              Tgroup.Group.(
-                if String.equal originator "cli" then
-                  Creator.make ~endpoint:Endpoint.Internal
-                    ~originator:(Originator.of_string originator)
-                    ()
-                else
-                  Creator.make ~identity:Identity.root_identity ()
-              )
+              Tgroup.Group.(Creator.make ~identity:Identity.root_identity ())
           in
           let thread_ctx = ThreadRuntimeContext.get () in
           (* authenticated_root here should mean a group has not been set yet and
@@ -1036,14 +1029,7 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
               let open Xapi_stdext_threads.Threadext in
               let tgroup =
                 Tgroup.of_creator
-                  Tgroup.Group.(
-                    if String.equal originator "cli" then
-                      Creator.make ~endpoint:Endpoint.Internal
-                        ~originator:(Originator.of_string originator)
-                        ()
-                    else
-                      Creator.make ~identity:Identity.root_identity ()
-                  )
+                  Tgroup.Group.(Creator.make ~identity:Identity.root_identity ())
               in
               let thread_ctx = ThreadRuntimeContext.get () in
               (* authenticated_root here should mean a group has not been set yet and
