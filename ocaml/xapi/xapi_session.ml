@@ -769,7 +769,6 @@ let slave_login_common ~__context ~host_str ~psecret =
     )
   in
   if !Constants.tgroups_enabled then (
-    let open Xapi_stdext_threads.Threadext in
     let tgroup =
       Tgroup.of_creator (Tgroup.Description.Creator.make ~intrapool:true ())
     in
@@ -974,7 +973,6 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
           ~db_ref:None ~client_certificate:false
       in
       if !Constants.tgroups_enabled then (
-        let open Xapi_stdext_threads.Threadext in
         let tgroup =
           Tgroup.of_creator
             Tgroup.Description.(Creator.make ~identity:Identity.root_identity ())
@@ -1031,7 +1029,6 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
               ~db_ref:None ~client_certificate:false
           in
           if !Constants.tgroups_enabled then (
-            let open Xapi_stdext_threads.Threadext in
             let tgroup =
               Tgroup.of_creator
                 Tgroup.Description.(
@@ -1342,7 +1339,6 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
                   ~rbac_permissions ~db_ref:None ~client_certificate:false
               in
               if !Constants.tgroups_enabled then (
-                let open Xapi_stdext_threads.Threadext in
                 let tgroup =
                   Tgroup.of_creator
                     Tgroup.Description.(
