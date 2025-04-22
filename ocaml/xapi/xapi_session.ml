@@ -33,6 +33,20 @@ open Client
 open Auth_signature
 open Extauth
 
+let update_thread_ctx tgroup =
+  if !Constants.tgroups_enabled then
+    let open Xapi_stdext_threads.Threadext in
+    let thread_ctx = ThreadRuntimeContext.get () in
+    (* authenticated_root here should mean a group has not been set yet and
+       we should set one. otherwise go with what has already been set.*)
+    if
+      thread_ctx.tgroup = Tgroup.Description.authenticated_root
+      || thread_ctx.tgroup = Tgroup.Description.unauthenticated
+    then
+      ThreadRuntimeContext.update
+        (fun thread_ctx -> {thread_ctx with tgroup})
+        thread_ctx
+
 module AuthFail : sig
   (* stats are reset each time you query, so if there hasn't
      been a failed login attempt since the last time the stats
@@ -759,16 +773,7 @@ let slave_login_common ~__context ~host_str ~psecret =
     let tgroup =
       Tgroup.of_creator (Tgroup.Description.Creator.make ~intrapool:true ())
     in
-    let thread_ctx = ThreadRuntimeContext.get () in
-    (* authenticated_root here should mean a group has not been set yet and
-       we should set one. otherwise go with what has already been set.*)
-    if
-      thread_ctx.tgroup = Tgroup.Description.authenticated_root
-      || thread_ctx.tgroup = Tgroup.Description.unauthenticated
-    then
-      ThreadRuntimeContext.update
-        (fun thread_ctx -> {thread_ctx with tgroup})
-        thread_ctx ;
+    update_thread_ctx tgroup ;
     Tgroup.with_one_thread_of_group tgroup f
   ) else
     f ()
@@ -974,16 +979,7 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
           Tgroup.of_creator
             Tgroup.Description.(Creator.make ~identity:Identity.root_identity ())
         in
-        let thread_ctx = ThreadRuntimeContext.get () in
-        (* authenticated_root here should mean a group has not been set yet and
-           we should set one. otherwise go with what has already been set.*)
-        if
-          thread_ctx.tgroup = Tgroup.Description.authenticated_root
-          || thread_ctx.tgroup = Tgroup.Description.unauthenticated
-        then
-          ThreadRuntimeContext.update
-            (fun thread_ctx -> {thread_ctx with tgroup})
-            thread_ctx ;
+        update_thread_ctx tgroup ;
         Tgroup.with_one_thread_of_group tgroup f
       ) else
         f ()
@@ -1042,17 +1038,7 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
                   Creator.make ~identity:Identity.root_identity ()
                 )
             in
-            let thread_ctx = ThreadRuntimeContext.get () in
-            (* authenticated_root here should mean a group has not been set yet and
-               we should set one. otherwise go with what has already been set.*)
-            if
-              thread_ctx.tgroup = Tgroup.Description.authenticated_root
-              || thread_ctx.tgroup = Tgroup.Description.unauthenticated
-            then
-              ThreadRuntimeContext.update
-                (fun thread_ctx -> {thread_ctx with tgroup})
-                thread_ctx ;
-
+            update_thread_ctx tgroup ;
             Tgroup.with_one_thread_of_group tgroup f
           ) else
             f ()
@@ -1365,17 +1351,7 @@ let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
                         ()
                     )
                 in
-                let thread_ctx = ThreadRuntimeContext.get () in
-                (* authenticated_root here should mean a group has not been set yet and
-                   we should set one. otherwise go with what has already been set.*)
-                if
-                  thread_ctx.tgroup = Tgroup.Description.authenticated_root
-                  || thread_ctx.tgroup = Tgroup.Description.unauthenticated
-                then
-                  ThreadRuntimeContext.update
-                    (fun thread_ctx -> {thread_ctx with tgroup})
-                    thread_ctx ;
-
+                update_thread_ctx tgroup ;
                 Tgroup.with_one_thread_of_group tgroup f
               ) else
                 f ()
