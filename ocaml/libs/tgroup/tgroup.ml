@@ -411,7 +411,11 @@ let of_req_originator originator =
     let () = Cgroup.set_cgroup creator in
     let group = Description.of_creator creator in
     Some group
-  with _ -> None
+  with exn ->
+    warn
+      "setting the tgroup based on http request header failed with\n\
+      \    exception: %s" (Printexc.to_string exn) ;
+    None
 
 let of_creator creator =
   let () = Cgroup.set_cgroup creator in
