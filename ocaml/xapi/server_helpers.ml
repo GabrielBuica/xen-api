@@ -130,6 +130,7 @@ end
 let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
     op_fn marshaller fd http_req label sync_ty generate_task_for =
   (* if the call has been forwarded to us, then they are responsible for completing the task, so we don't need to complete it *)
+  Xapi_stdext_threads.Threadext.ThreadRuntimeContext.cannot_sleep () ;
   let@ http_req = Helper.with_tracing ~name:__FUNCTION__ http_req in
   let called_async = sync_ty <> `Sync in
   if called_async && not supports_async then

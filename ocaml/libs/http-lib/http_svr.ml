@@ -568,13 +568,13 @@ let handle_connection ~header_read_timeout ~header_total_timeout
      client IP) to be added to all request records on a connection, it must be passed
      along in the loop below. *)
   let rec loop ~read_timeout ~total_timeout proxy_seen =
-    Xapi_stdext_threads.Threadext.ThreadRuntimeContext.can_sleep ();
+    Xapi_stdext_threads.Threadext.ThreadRuntimeContext.can_sleep () ;
     (* 1. we must successfully parse a request *)
     let req, proxy =
       read_request ?proxy_seen ~read_timeout ~total_timeout
         ~max_length:max_header_length ss
     in
-    Xapi_stdext_threads.Threadext.ThreadRuntimeContext.cannot_sleep ();
+    Xapi_stdext_threads.Threadext.ThreadRuntimeContext.cannot_sleep () ;
 
     (* 2. now we attempt to process the request *)
     let finished =

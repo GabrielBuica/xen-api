@@ -13,6 +13,7 @@ end
 
 (* This bit is called directly by the fake_rpc callback *)
 let callback1 ?(json_rpc_version = Jsonrpc.V1) is_json req fd call =
+  Xapi_stdext_threads.Threadext.ThreadRuntimeContext.can_sleep () ;
   let@ req = Helper.with_tracing ~name:__FUNCTION__ req in
   (* We now have the body string, the xml and the call name, and can also tell *)
   (* if we're a master or slave and whether the call came in on the unix domain socket or the tcp socket *)
