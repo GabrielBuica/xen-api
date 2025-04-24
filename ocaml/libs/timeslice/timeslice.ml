@@ -77,10 +77,13 @@ module Runtime = struct
 
         let sleep_or_yield sleep_time (tgroup : Tgroup.t) =
           (*todo: do not sleep if this is the last thread in the tgroup(s) *)
-          if tgroup.group_descr = Tgroup.Description.authenticated_root then
-            with_time_counter_now thread_last_yield Thread.yield ()
-          else
+          if
+            thread_ctx.can_sleep
+            && tgroup.group_descr <> Tgroup.Description.authenticated_root
+          then
             with_time_counter_now thread_last_yield Unix.sleepf sleep_time
+          else
+            with_time_counter_now thread_last_yield Thread.yield ()
         in
         let is_to_sleep_or_yield delay_s =
           if delay_s > 0. then

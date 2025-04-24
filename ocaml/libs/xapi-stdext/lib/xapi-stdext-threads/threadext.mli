@@ -51,6 +51,7 @@ module ThreadRuntimeContext : sig
     ; mutable time_running: int
     ; mutable tepoch: int
     ; tgroup: Tgroup.Description.t
+    ; mutable can_sleep: bool
   }
 
   val create : ?thread_name:string -> unit -> t
@@ -66,4 +67,8 @@ module ThreadRuntimeContext : sig
 
   val remove : unit -> unit
   (** [remove ()] removes the thread local storage of the current thread. *)
+
+  val can_sleep : unit -> unit
+
+  val cannot_sleep : unit -> unit
 end

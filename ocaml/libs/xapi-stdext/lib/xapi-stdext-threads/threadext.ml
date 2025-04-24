@@ -105,6 +105,7 @@ module ThreadRuntimeContext = struct
     ; mutable time_running: int
     ; mutable tepoch: int
     ; tgroup: Tgroup.Description.t
+    ; mutable can_sleep: bool
   }
 
   (*The documentation for Ambient_context_thread_local isn't really clear is
@@ -118,7 +119,10 @@ module ThreadRuntimeContext = struct
     let time_running = 0 in
     let tepoch = 0 in
     let tgroup = Tgroup.Description.authenticated_root in
-    let tls = {thread_name; tgroup; ocaml_tid; time_running; tepoch} in
+    let can_sleep = false in
+    let tls =
+      {thread_name; tgroup; ocaml_tid; time_running; tepoch; can_sleep}
+    in
     let () =
       Ambient_context_thread_local.Thread_local.set thread_local_storage tls
     in
@@ -134,4 +138,12 @@ module ThreadRuntimeContext = struct
 
   let remove () =
     Ambient_context_thread_local.Thread_local.remove thread_local_storage
+
+  let can_sleep () =
+    let thread_ctx = get () in
+    thread_ctx.can_sleep <- true
+
+  let cannot_sleep () =
+    let thread_ctx = get () in
+    thread_ctx.can_sleep <- false
 end

@@ -702,6 +702,7 @@ let login_no_password_common ~__context ~uname ~originator ~host ~pool
     )
   in
   let create_session () =
+    Xapi_stdext_threads.Threadext.ThreadRuntimeContext.cannot_sleep ();
     login_no_password_common_create_session ~__context ~uname ~originator ~host
       ~pool ~is_local_superuser ~subject ~auth_user_sid ~auth_user_name
       ~rbac_permissions ~db_ref ~client_certificate
@@ -961,6 +962,7 @@ let clear_external_auth_cache = Caching.clear_cache
 let login_with_password ~__context ~uname ~pwd ~version:_ ~originator =
   Context.with_tracing ~originator ~__context __FUNCTION__ @@ fun __context ->
   (* !!! Do something with the version number *)
+  Xapi_stdext_threads.Threadext.ThreadRuntimeContext.can_sleep ();
   match Context.preauth ~__context with
   | Some `root ->
       (* in this case, the context origin of this login request is a unix socket bound locally to a filename *)
