@@ -115,6 +115,7 @@ type t = {
   ; mutable tgroup_share: int
   ; thread_count: int Atomic.t
   ; mutable time_ideal: int (*This represents the time in nanoseconds*)
+  ; threads_lag: int Atomic.t
 }
 
 val tgroups : unit -> t list
@@ -157,3 +158,5 @@ val of_creator : Description.Creator.t -> Description.t
 val of_req_originator : string option -> Description.t option
 (** [of_req_originator o] same as [of_creator] but it classifies based on the
     http request header.*)
+
+val throttle_tgroup : Description.t -> unit

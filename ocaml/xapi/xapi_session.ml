@@ -634,6 +634,10 @@ let login_no_password_common_create_session ~__context ~uname ~originator ~host
     ~rbac_permissions ~db_ref ~client_certificate =
   Context.with_tracing ~originator ~__context __FUNCTION__ @@ fun __context ->
   let create_session () =
+    let thread_ctx =
+      Xapi_stdext_threads.Threadext.ThreadRuntimeContext.get ()
+    in
+    let () = Tgroup.throttle_tgroup thread_ctx.tgroup in
     let session_id = Ref.make_secret () in
     let uuid = Uuidx.to_string (Uuidx.make_uuid_urnd ()) in
     let user = Ref.null in

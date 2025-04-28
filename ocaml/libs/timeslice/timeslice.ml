@@ -50,6 +50,13 @@ let[@inline always] with_time_counter_now time_counter f args =
 module Runtime = struct
   let epoch_count = Atomic.make 0
 
+  let update_tgroup_lag_and_yield
+      (thread_ctx : Xapi_stdext_threads.Threadext.ThreadRuntimeContext.t)
+      (tgroup : Tgroup.t) =
+    let overtime = thread_ctx.time_running - tgroup.time_ideal in
+    let _ : int = Atomic.fetch_and_add tgroup.threads_lag overtime in
+    Thread.yield ()
+
   let maybe_thread_yield ~global_slice_period =
     let open Xapi_stdext_threads.Threadext in
     let thread_ctx = ThreadRuntimeContext.get () in
@@ -75,17 +82,18 @@ module Runtime = struct
             thread_ctx.time_running <- time_running
         ) ;
 
-        let sleep_or_yield sleep_time (tgroup : Tgroup.t) =
-          (*todo: do not sleep if this is the last thread in the tgroup(s) *)
+        let calculate_lag_and_yield (tgroup : Tgroup.t) =
           if tgroup.group_descr = Tgroup.Description.authenticated_root then
             with_time_counter_now thread_last_yield Thread.yield ()
           else
-            with_time_counter_now thread_last_yield Unix.sleepf sleep_time
+            with_time_counter_now thread_last_yield
+              (update_tgroup_lag_and_yield thread_ctx)
+              tgroup
         in
-        let is_to_sleep_or_yield delay_s =
+        let is_to_yield delay_s =
           if delay_s > 0. then
             Tgroup.with_one_fewer_thread_in_tgroup tgroup
-              (sleep_or_yield delay_s)
+              calculate_lag_and_yield
         in
 
         (* fair scheduling decision to check if thread time_running has exceeded
@@ -103,7 +111,7 @@ module Runtime = struct
           let thread_delay_s =
             (until_next_global_slice |> float_of_int) *. 1e-9
           in
-          is_to_sleep_or_yield thread_delay_s
+          is_to_yield thread_delay_s
 
   let incr_epoch ~frequency =
     let epoch = epoch_count |> Atomic.get in

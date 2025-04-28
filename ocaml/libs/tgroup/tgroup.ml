@@ -339,6 +339,7 @@ type t = {
   ; mutable tgroup_share: int
   ; thread_count: int Atomic.t
   ; mutable time_ideal: int
+  ; threads_lag: int Atomic.t
 }
 
 let tgroups = Hashtbl.create 10
@@ -350,6 +351,7 @@ let add group_descr =
   ; tgroup_share= group_descr |> Description.get_share
   ; thread_count= Atomic.make 0
   ; time_ideal= 0
+  ; threads_lag= Atomic.make 0
   }
   |> Hashtbl.add tgroups group_descr
 
@@ -420,3 +422,25 @@ let of_req_originator originator =
 let of_creator creator =
   let () = Cgroup.set_cgroup creator in
   Description.of_creator creator
+
+let throttle_tgroup (tgroup : Description.t) =
+  match group_of_description tgroup with
+  | None ->
+      ()
+  | Some tgroup ->
+      let sleep_time =
+        Atomic.get tgroup.threads_lag / Atomic.get tgroup.thread_count
+      in
+      let _ : int = Atomic.fetch_and_add tgroup.threads_lag (0 - sleep_time) in
+      let sleep_time =
+        match sleep_time with
+        | t when t > 200_000_000 ->
+            200_000_000 (*don't sleep more than 200ms*)
+        | t when t < 500_000 ->
+            0 (*ignore sleeps longer than 0.5ms*)
+        | t ->
+            t
+      in
+      let sleep_time = float_of_int sleep_time *. 1e-9 in
+      warn "sleeping for: %f" sleep_time ;
+      Unix.sleepf sleep_time
