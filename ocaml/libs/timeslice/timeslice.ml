@@ -99,10 +99,11 @@ module Runtime = struct
 
           if tgroup.group_descr = Tgroup.Description.authenticated_root then
             with_time_counter_now thread_last_yield Thread.yield ()
-          else
+          else (
             Queue.add thread_ctx.delay delays ;
-          with_time_counter_now thread_last_yield delay_thread thread_ctx
-            sleep_time
+            with_time_counter_now thread_last_yield delay_thread thread_ctx
+              sleep_time
+          )
         in
         let is_to_sleep_or_yield delay_s =
           if delay_s > 0. then
