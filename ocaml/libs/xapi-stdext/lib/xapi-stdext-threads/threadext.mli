@@ -51,6 +51,7 @@ module ThreadRuntimeContext : sig
     ; mutable time_running: int
     ; mutable tepoch: int
     ; tgroup: Tgroup.Description.t
+    ; delay: Delay.t
   }
 
   val create : ?thread_name:string -> unit -> t

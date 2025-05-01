@@ -50,6 +50,23 @@ let[@inline always] with_time_counter_now time_counter f args =
 module Runtime = struct
   let epoch_count = Atomic.make 0
 
+  let delays = Queue.create ()
+
+  let delay_thread thread_ctx sleep_time =
+    let _ : bool =
+      Xapi_stdext_threads.Threadext.Delay.wait
+        thread_ctx.Xapi_stdext_threads.Threadext.ThreadRuntimeContext.delay
+        sleep_time
+    in
+    ()
+
+  let signal () =
+    match Queue.take_opt delays with
+    | None ->
+        ()
+    | Some delay ->
+        Xapi_stdext_threads.Threadext.Delay.signal delay
+
   let maybe_thread_yield ~global_slice_period =
     let open Xapi_stdext_threads.Threadext in
     let thread_ctx = ThreadRuntimeContext.get () in
@@ -76,11 +93,16 @@ module Runtime = struct
         ) ;
 
         let sleep_or_yield sleep_time (tgroup : Tgroup.t) =
-          (*todo: do not sleep if this is the last thread in the tgroup(s) *)
+          (* signals the threads sleeping if this is the last thread in the tgroup(s) *)
+          if Atomic.get tgroup.thread_count = 1 then
+            signal () ;
+
           if tgroup.group_descr = Tgroup.Description.authenticated_root then
             with_time_counter_now thread_last_yield Thread.yield ()
           else
-            with_time_counter_now thread_last_yield Unix.sleepf sleep_time
+            Queue.add thread_ctx.delay delays ;
+          with_time_counter_now thread_last_yield delay_thread thread_ctx
+            sleep_time
         in
         let is_to_sleep_or_yield delay_s =
           if delay_s > 0. then
@@ -115,6 +137,8 @@ module Runtime = struct
   let sched_global_slice ~global_slice_period =
     (*refresh the eopch counter roughly every 10s for timeslices of 10ms*)
     incr_epoch ~frequency:1024 ;
+
+    Queue.clear delays ;
 
     (* goal is to recalculate thread.time_ideal for each thread: *)
     (* 1) fairness: each thread group get the same amount of time inside the slice  *)
