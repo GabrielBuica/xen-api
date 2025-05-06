@@ -172,7 +172,7 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
       | `InternalAsync ->
           async ~need_complete:true
     in
-    if !Constants.tgroups_enabled then (
+    if !Constants.tgroups_enabled then
       let identity =
         try
           Option.map
@@ -193,22 +193,8 @@ let do_dispatch ?session_id ?forward_op ?self:_ supports_async called_fn_name
             )
         with _ -> None
       in
-      let tgroup =
-        Tgroup.of_creator (Tgroup.Description.Creator.make ?identity ())
-      in
-      let open Xapi_stdext_threads.Threadext in
-      let thread_ctx = ThreadRuntimeContext.get () in
-      (* authenticated_root here should mean a group has not been set yet and
-         we should set one. otherwise go with what has already been set.*)
-      if
-        thread_ctx.tgroup = Tgroup.Description.authenticated_root
-        || thread_ctx.tgroup = Tgroup.Description.unauthenticated
-      then
-        ThreadRuntimeContext.update
-          (fun thread_ctx -> {thread_ctx with tgroup})
-          thread_ctx ;
-      Tgroup.with_one_thread_of_group tgroup f
-    ) else
+      Tgroup_helpers.with_updated_tgroup ?identity f
+    else
       f ()
 
 (* regardless of forwarding, we are expected to complete the task *)

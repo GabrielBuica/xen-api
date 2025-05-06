@@ -66,6 +66,7 @@
   rbac_static
   xapi_role
   xapi_extensions
+  tgroup_helpers
   db)
  (modes best)
  (wrapped false)
@@ -124,6 +125,7 @@
    rbac_static
    db_actions
    taskHelper
+   tgroup_helpers
    eventgen
    locking_helpers
    exnHelper
