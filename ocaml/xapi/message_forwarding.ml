@@ -88,6 +88,7 @@ let remote_rpc_retry _context hostname (task_opt : API.ref_task option) xml =
 
 let call_slave_with_session remote_rpc_fn __context host
     (task_opt : API.ref_task option) f =
+  let@ __context = Context.with_tracing ~__context __FUNCTION__ in
   let hostname = Db.Host.get_address ~__context ~self:host in
   let session_id =
     Xapi_session.login_no_password ~__context ~uname:None ~host ~pool:true
