@@ -1498,6 +1498,7 @@ functor
           ?host_op () =
         let@ __context = Context.with_tracing ~__context __FUNCTION__ in
         let suitable_host =
+          let@ __context = Context.with_tracing ~__context "suitable_host" in
           Helpers.with_global_lock (fun () ->
               let host =
                 Db.VM.get_scheduled_to_be_resident_on ~__context ~self:vm
@@ -1517,11 +1518,17 @@ functor
         in
         finally
           (fun () ->
+            let@ __context =
+              Context.with_tracing ~__context "finally_do_op_on"
+            in
             ( do_op_on ~local_fn ~__context ~host:suitable_host ~remote_fn
             , suitable_host
             )
           )
           (fun () ->
+            let@ __context =
+              Context.with_tracing ~__context "finally_clear_host_operation"
+            in
             Helpers.with_global_lock (fun () ->
                 finally_clear_host_operation ~__context ~host:suitable_host
                   ?host_op () ;
