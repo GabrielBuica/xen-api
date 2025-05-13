@@ -17,6 +17,8 @@
 
 let finally = Xapi_stdext_pervasives.Pervasiveext.finally
 
+let ( let@ ) f x = f x
+
 open Client
 
 module D = Debug.Make (struct let name = "message_forwarding" end)
@@ -1189,7 +1191,10 @@ functor
 
     module VM = struct
       (* Defined in Xapi_vm_helpers so it can be used from elsewhere without circular dependency. *)
-      let with_vm_operation = Xapi_vm_helpers.with_vm_operation
+      let with_vm_operation ~__context ~self ~doc ~op ?strict ?policy f =
+        let@ __context = Context.with_tracing ~__context __FUNCTION__ in
+        Xapi_vm_helpers.with_vm_operation ~__context ~self ~doc ~op ?strict
+          ?policy f
 
       (* Nb, we're not using the snapshots returned in 'Event.from' here because
        * the tasks might get deleted. The standard mechanism for dealing with
@@ -1204,6 +1209,7 @@ functor
       let wait_for_tasks = Helpers.Task.wait_for
 
       let create_vm_message ~__context ~vm ~message_body ~message =
+        let@ __context = Context.with_tracing ~__context __FUNCTION__ in
         let name, priority = message in
         try
           ignore
@@ -1347,6 +1353,7 @@ functor
       (* Some VM operations have side-effects on VBD allowed_operations but don't actually
          lock the VBDs themselves (eg suspend) *)
       let update_vbd_operations ~__context ~vm =
+        let@ __context = Context.with_tracing ~__context __FUNCTION__ in
         Helpers.with_global_lock (fun () ->
             List.iter
               (fun self ->
@@ -1360,6 +1367,7 @@ functor
         )
 
       let update_vif_operations ~__context ~vm =
+        let@ __context = Context.with_tracing ~__context __FUNCTION__ in
         Helpers.with_global_lock (fun () ->
             List.iter
               (fun self ->
@@ -1864,6 +1872,7 @@ functor
         )
 
       let start ~__context ~vm ~start_paused ~force =
+        let@ __context = Context.with_tracing ~__context __FUNCTION__ in
         info "VM.start: VM = '%s'" (vm_uuid ~__context vm) ;
         Pool_features.assert_enabled ~__context ~f:Features.VM_start ;
         Xapi_vm_helpers.assert_no_legacy_hardware ~__context ~vm ;

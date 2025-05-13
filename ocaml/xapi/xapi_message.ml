@@ -408,9 +408,12 @@ let write ~__context ~_ref ~message =
       )
     with _ -> None
 
+let ( let@ ) f x = f x
+
 (** create: Create a new message, and write to disk. Returns null ref
     	if write failed, or message ref otherwise. *)
 let create ~__context ~name ~priority ~cls ~obj_uuid ~body =
+  let@ __context = Context.with_tracing ~__context __FUNCTION__ in
   debug "Message.create %s %Ld %s %s" name priority
     (Record_util.cls_to_string cls)
     obj_uuid ;
