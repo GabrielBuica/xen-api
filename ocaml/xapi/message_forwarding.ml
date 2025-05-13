@@ -1191,10 +1191,7 @@ functor
 
     module VM = struct
       (* Defined in Xapi_vm_helpers so it can be used from elsewhere without circular dependency. *)
-      let with_vm_operation ~__context ~self ~doc ~op ?strict ?policy f =
-        let@ __context = Context.with_tracing ~__context __FUNCTION__ in
-        Xapi_vm_helpers.with_vm_operation ~__context ~self ~doc ~op ?strict
-          ?policy f
+      let with_vm_operation = Xapi_vm_helpers.with_vm_operation
 
       (* Nb, we're not using the snapshots returned in 'Event.from' here because
        * the tasks might get deleted. The standard mechanism for dealing with
@@ -1499,6 +1496,7 @@ functor
          'allocate_vm_to_host' (ie set the 'scheduled_to_be_resident_on' field) *)
       let forward_to_suitable_host ~local_fn ~__context ~vm ~snapshot ~remote_fn
           ?host_op () =
+        let@ __context = Context.with_tracing ~__context __FUNCTION__ in
         let suitable_host =
           Helpers.with_global_lock (fun () ->
               let host =
@@ -1881,10 +1879,17 @@ functor
         let host =
           with_vm_operation ~__context ~self:vm ~doc:"VM.start" ~op:`start
             (fun () ->
+              let@ __context = Context.with_tracing ~__context __FUNCTION__ in
               with_vbds_marked ~__context ~vm ~doc:"VM.start" ~op:`attach
                 (fun _vbds ->
+                  let@ __context =
+                    Context.with_tracing ~__context __FUNCTION__
+                  in
                   with_vifs_marked ~__context ~vm ~doc:"VM.start" ~op:`attach
                     (fun _vifs ->
+                      let@ __context =
+                        Context.with_tracing ~__context __FUNCTION__
+                      in
                       Xapi_vm_helpers.ensure_domain_type_is_specified ~__context
                         ~self:vm ;
                       (* The start operation makes use of the cached memory overhead *)
