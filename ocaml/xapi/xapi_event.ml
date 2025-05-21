@@ -309,6 +309,55 @@ module Next = struct
     List.map snd (List.rev selected_events)
 end
 
+let ( let@ ) f x = f x
+
+module Next_Traced = struct
+  (* Add an event to the queue if it matches any active subscriptions *)
+  let add __context ev =
+    let@ __context = Context.with_tracing ~__context __FUNCTION__ in
+    Next.add ev
+
+  let assert_subscribed __context session =
+    let@ __context = Context.with_tracing ~__context __FUNCTION__ in
+    Next.assert_subscribed session
+
+  (* Fetch the single subscription_record associated with a session or create
+     	   one if one doesn't exist already *)
+  let get_subscription __context session =
+    let@ __context = Context.with_tracing ~__context __FUNCTION__ in
+    Next.get_subscription session
+
+  let on_session_deleted __context session_id =
+    let@ __context = Context.with_tracing ~__context __FUNCTION__ in
+    Next.on_session_deleted session_id
+
+  let session_is_invalid __context sub =
+    let@ __context = Context.with_tracing ~__context __FUNCTION__ in
+    Next.session_is_invalid sub
+
+  (* Blocks the caller until the current ID has changed OR the session has been
+     	    invalidated. *)
+  let wait __context subscription from_id =
+    let@ __context = Context.with_tracing ~__context __FUNCTION__ in
+    Next.wait subscription from_id
+
+  (* Thrown if the user requests events which we don't have because we've thrown
+     	   then away. This should only happen if more than max_stored_events are produced
+     	   between successive calls to Event.next (). The client should refresh all its state
+     	   manually before calling Event.next () again.
+  *)
+  let events_lost __context () =
+    let@ __context = Context.with_tracing ~__context __FUNCTION__ in
+    Next.events_lost ()
+
+  (* Return events from the queue between a start and an end ID. Throws
+     	   an API error if some events have been lost, signalling the client to
+     	   re-register. *)
+  let events_read __context id_start id_end =
+    let@ __context = Context.with_tracing ~__context __FUNCTION__ in
+    Next.events_read id_start id_end
+end
+
 module From = struct
   let m = Mutex.create ()
 
@@ -475,7 +524,7 @@ let unregister ~__context ~classes =
   )
 
 (** Blocking call which returns the next set of events relevant to this session. *)
-let rec next ~__context =
+let rec next_rec ~__context =
   let batching =
     if !Constants.use_event_next then
       Throttle.Batching.make ~delay_before:Mtime.Span.zero
@@ -484,20 +533,20 @@ let rec next ~__context =
       !Xapi_globs.event_next_delay
   in
   let session = Context.get_session_id __context in
-  let open Next in
-  assert_subscribed session ;
-  let subscription = get_subscription session in
+  let open Next_Traced in
+  assert_subscribed __context session ;
+  let subscription = get_subscription __context session in
   (* Return a <from_id, end_id> exclusive range that is guaranteed to be specific to this
      	   thread. Concurrent calls will grab wholly disjoint ranges. Note the range might be
      	   empty. *)
   let grab_range () =
     (* Briefly hold both the general and the specific mutex *)
-    with_lock m (fun () ->
+    with_lock Next.m (fun () ->
         with_lock subscription.m (fun () ->
             let last_id = subscription.last_id in
             (* Bump our last_id counter: these events don't have to be looked at again *)
-            subscription.last_id <- !id ;
-            (last_id, !id)
+            subscription.last_id <- !Next.id ;
+            (last_id, !Next.id)
         )
     )
   in
@@ -506,7 +555,7 @@ let rec next ~__context =
     Throttle.Batching.with_recursive_loop batching @@ fun self arg ->
     let last_id, end_id = grab_range () in
     if last_id = end_id then
-      let (_ : int64) = wait subscription end_id in
+      let (_ : int64) = wait __context subscription end_id in
       (self [@tailcall]) arg
     else
       (last_id, end_id)
@@ -514,16 +563,20 @@ let rec next ~__context =
   let last_id, end_id = grab_nonempty_range () in
   (* debug "next examining events in range %Ld <= x < %Ld" last_id end_id; *)
   (* Are any of the new events interesting? *)
-  let events = events_read last_id end_id in
+  let events = events_read __context last_id end_id in
   let subs = with_lock subscription.m (fun () -> subscription.subs) in
   let relevant =
     List.filter (fun ev -> Subscription.event_matches subs ev) events
   in
   (* debug "number of relevant events = %d" (List.length relevant); *)
   if relevant = [] then
-    next ~__context
+    next_rec ~__context
   else
     rpc_of_events relevant
+
+let next ~__context =
+  let@ __context = Context.with_tracing ~__context __FUNCTION__ in
+  next_rec ~__context
 
 type time = Xapi_database.Db_cache_types.Time.t
 
