@@ -338,7 +338,11 @@ module Next_Traced = struct
   (* Blocks the caller until the current ID has changed OR the session has been
      	    invalidated. *)
   let wait __context subscription from_id =
-    let@ __context = Context.with_tracing ~__context __FUNCTION__ in
+    let@ __context =
+      Context.with_tracing
+        ~attributes:[("Next.wait.from.id", Int64.to_string from_id)]
+        ~__context __FUNCTION__
+    in
     Next.wait subscription from_id
 
   (* Thrown if the user requests events which we don't have because we've thrown

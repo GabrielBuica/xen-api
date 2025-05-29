@@ -504,7 +504,7 @@ let get_client_ip context =
 let get_user_agent context =
   match context.origin with Internal -> None | Http (rq, _) -> rq.user_agent
 
-let with_tracing ?originator ~__context name f =
+let with_tracing ?(attributes = []) ?originator ~__context name f =
   let open Tracing in
   let parent = __context.tracing in
   let span_attributes =
@@ -512,6 +512,7 @@ let with_tracing ?originator ~__context name f =
     @ make_attributes ~task_id:__context.task_id
         ?session_id:__context.session_id ()
   in
+  let span_attributes = attributes @ span_attributes in
   match start_tracing_helper ~span_attributes (fun _ -> parent) name with
   | Some _ as span -> (
     try

@@ -147,6 +147,11 @@ val complete_tracing : ?error:exn * Printexc.raw_backtrace -> t -> unit
 val tracing_of : t -> Tracing.Span.t option
 
 val with_tracing :
-  ?originator:string -> __context:t -> string -> (t -> 'a) -> 'a
+     ?attributes:(string * string) list
+  -> ?originator:string
+  -> __context:t
+  -> string
+  -> (t -> 'a)
+  -> 'a
 
 val set_client_span : t -> Tracing.Span.t option
