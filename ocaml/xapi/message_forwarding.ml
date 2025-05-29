@@ -2904,6 +2904,7 @@ functor
         Local.VM.assert_operation_valid ~__context ~self ~op
 
       let update_allowed_operations ~__context ~self =
+        Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
         info "VM.update_allowed_operations: VM = '%s'" (vm_uuid ~__context self) ;
         Local.VM.update_allowed_operations ~__context ~self
 
