@@ -162,7 +162,7 @@ module Next = struct
         if matches then (
           let size = event_size ev in
           queue := (size, ev) :: !queue ;
-          (* debug "Adding event %Ld: %s" (!id) (string_of_event ev); *)
+          debug "Adding event %Ld: %s" (!id) (string_of_event ev);
           id := Int64.add !id Int64.one ;
           Condition.broadcast c
         ) else
@@ -340,7 +340,7 @@ module Next_Traced = struct
   let wait __context subscription from_id =
     let@ __context =
       Context.with_tracing
-        ~attributes:[("Next.wait.from.id", Int64.to_string from_id)]
+        ~attributes:[("event.next.wait.from.id", Int64.to_string from_id)]
         ~__context __FUNCTION__
     in
     Next.wait subscription from_id
