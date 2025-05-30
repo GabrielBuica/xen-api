@@ -314,6 +314,7 @@ let cache_remove _ref =
 (** Write: write message to disk. Returns boolean indicating whether
     	message was written *)
 let write ~__context ~_ref ~message =
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   (* Check if a message with _ref has already been written *)
   let message_exists () =
     let file = ref_symlink () ^ "/" ^ Ref.string_of _ref in
@@ -463,6 +464,7 @@ let ndeleted = ref 1
 let deleted_mutex = Mutex.create ()
 
 let destroy_real __context basefilename =
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   let filename = message_dir ^ "/" ^ basefilename in
   let ic = open_in filename in
   let gen, _ref, message =
