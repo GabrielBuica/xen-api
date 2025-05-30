@@ -3197,6 +3197,8 @@ let events_from_xapi () =
       while not !stop do
         try
           Helpers.call_api_functions ~__context (fun rpc session_id ->
+              Context.with_tracing ~__context "events_from_xapi"
+              @@ fun __context ->
               (trigger_xenapi_reregister :=
                  fun () ->
                    debug
