@@ -1853,6 +1853,7 @@ module Events_from_xenopsd = struct
 end
 
 let update_vm ~__context id =
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
   try
     if Events_from_xenopsd.are_suppressed id then
       debug "xenopsd event: ignoring event for VM (VM %s migrating away)" id
