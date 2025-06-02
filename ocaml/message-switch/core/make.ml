@@ -385,8 +385,14 @@ functor
               | _ :: _ ->
                   iter
                     (fun (i, m) ->
-                      Tracing.with_tracing ~attributes: [("xs.message.switch.listen.queue",
-                  name); (fun (str, id) -> (str, Int64.to_string id) ) i] ~parent ~name:__FUNCTION__ @@ fun _ ->
+                      Tracing.with_tracing
+                        ~attributes:
+                          [
+                            ("xs.message.switch.listen.queue", name)
+                          ; (fun (str, id) -> (str, Int64.to_string id)) i
+                          ]
+                        ~parent ~name:__FUNCTION__
+                      @@ fun _ ->
                       process m.Message.payload >>= fun response ->
                       ( match m.Message.kind with
                       | Message.Response _ ->
