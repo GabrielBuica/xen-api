@@ -355,6 +355,7 @@ functor
     let ( >>|= ) m f = m >>= function Ok x -> f x | Error y -> return (Error y)
 
     let listen ~process ~switch:port ~queue:name () =
+      let parent = Tracing.with_tracing ~name:__FUNCTION__ Fun.id in
       let token = Printf.sprintf "%d" (Unix.getpid ()) in
       M.connect port >>= fun c ->
       Connection.rpc c (In.Login token) >>|= fun (_ : string) ->
@@ -384,6 +385,8 @@ functor
               | _ :: _ ->
                   iter
                     (fun (i, m) ->
+                      Tracing.with_tracing ~attributes: [("xs.message.switch.listen.queue",
+                  name); (fun (str, id) -> (str, Int64.to_string id) ) i] ~parent ~name:__FUNCTION__ @@ fun _ ->
                       process m.Message.payload >>= fun response ->
                       ( match m.Message.kind with
                       | Message.Response _ ->
