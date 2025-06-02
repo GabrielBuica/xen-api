@@ -3696,7 +3696,9 @@ module VM = struct
     in
     (vm_t, state)
 
-  let stat _ dbg id = Debug.with_thread_associated dbg (fun () -> stat' id) ()
+  let stat _ dbg id =
+    Debug_info.with_dbg ~with_thread:true
+      ~module_name:"Xenops_server" ~name:__FUNCTION__ ~dbg @@ fun _ -> stat' id
 
   let exists _ _dbg id = match DB.read id with Some _ -> true | None -> false
 
