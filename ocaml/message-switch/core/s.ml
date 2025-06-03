@@ -144,7 +144,7 @@ module type CLIENT = sig
   (** [disconnect] closes the connection *)
 
   val rpc :
-     ?_traceparent: Tracing.Span.t
+       ?_traceparent:Tracing.Span.t
     -> t:t
     -> queue:string
     -> ?timeout:int

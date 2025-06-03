@@ -364,13 +364,18 @@ module Client = struct
             do_rpc c.requests_conn (In.CreatePersistent dest_queue_name)
             >>|= fun (_ : string) ->
             let msg =
-              Tracing.with_tracing ~parent:_traceparent ~name:"send_message"
-              (fun _ ->
-              In.Send
-                ( dest_queue_name
-                , {Message.payload= x; kind= Message.Request c.reply_queue_name}
+              Tracing.with_tracing
+                ~attributes:[("xs.message.body", x)]
+                ~parent:_traceparent ~name:"send_message"
+                (fun _ ->
+                  In.Send
+                    ( dest_queue_name
+                    , {
+                        Message.payload= x
+                      ; kind= Message.Request c.reply_queue_name
+                      }
+                    )
                 )
-            )
             in
             do_rpc c.requests_conn msg >>|= fun (id : string) ->
             match message_id_opt_of_rpc (Jsonrpc.of_string id) with

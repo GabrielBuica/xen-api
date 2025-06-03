@@ -40,9 +40,12 @@ let switch_rpc ?timeout queue_name string_of_call response_of_string =
   in
   fun (call : Rpc.call) ->
     let _traceparent =
-    match call.params with
-    | Rpc.String dbg :: _ -> let di  = dbg |> Debug_info.of_string in di.tracing
-    | _ -> None
+      match call.params with
+      | Rpc.String dbg :: _ ->
+          let di = dbg |> Debug_info.of_string in
+          di.tracing
+      | _ ->
+          None
     in
     response_of_string
       (get_ok
