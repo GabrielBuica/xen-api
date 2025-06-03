@@ -44,12 +44,18 @@ let switch_rpc ?timeout queue_name string_of_call response_of_string =
       |> List.find_map (fun param ->
              match param with
              | Rpc.String debug_info ->
-                 let di = debug_info |> Debug_info.of_string in
-                 di.tracing
+                 Some debug_info
+                 (*let di = debug_info |> Debug_info.of_string in
+                   di.tracing *)
              | _ ->
                  None
          )
     in
+    Tracing.with_tracing
+      ~attributes:
+        [("call.params.strings", Option.value ~default:"none" _traceparent)]
+      ~name:__FUNCTION__
+    @@ fun _traceparent ->
     response_of_string
       (get_ok
          (Message_switch_unix.Protocol_unix.Client.rpc ?_traceparent ~t ?timeout
