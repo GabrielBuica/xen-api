@@ -38,10 +38,15 @@ let switch_rpc ?timeout queue_name string_of_call response_of_string =
     get_ok
       (Message_switch_unix.Protocol_unix.Client.connect ~switch:!switch_path ())
   in
-  fun call ->
+  fun (call : Rpc.call) ->
+    let _traceparent =
+    match call.params with
+    | Rpc.String dbg :: _ -> let di  = dbg |> Debug_info.of_string in di.tracing
+    | _ -> None
+    in
     response_of_string
       (get_ok
-         (Message_switch_unix.Protocol_unix.Client.rpc ~t ?timeout
+         (Message_switch_unix.Protocol_unix.Client.rpc ?_traceparent ~t ?timeout
             ~queue:queue_name ~body:(string_of_call call) ()
          )
       )
