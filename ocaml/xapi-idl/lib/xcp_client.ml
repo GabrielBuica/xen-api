@@ -43,8 +43,16 @@ let switch_rpc ?timeout queue_name string_of_call response_of_string =
       call.params
       |> List.find_map (fun param ->
              match param with
-             | Rpc.String debug_info ->
-                 Some debug_info
+             | Rpc.Dict kv_list ->
+                 List.find_map
+                   (fun kv ->
+                     match kv with
+                     | "debug_info", Rpc.String v ->
+                         Some v
+                     | _ ->
+                         None
+                   )
+                   kv_list
                  (*let di = debug_info |> Debug_info.of_string in
                    di.tracing *)
              | _ ->
