@@ -52,6 +52,10 @@ let switch_rpc ?timeout queue_name string_of_call response_of_string =
              )
              )
     in
+    Tracing.with_tracing
+      ~attributes:[("xs.message_switch.call.name", call.name)]
+      ~parent:_traceparent ~name:"Message_switch.call"
+    @@ fun _traceparent ->
     response_of_string
       (get_ok
          (Message_switch_unix.Protocol_unix.Client.rpc ?_traceparent ~t ?timeout
