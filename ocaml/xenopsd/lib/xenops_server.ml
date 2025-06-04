@@ -3704,8 +3704,8 @@ module VM = struct
       ~dbg
     @@ fun _ -> stat' id
 
-  let exists _ _dbg id =
-    Debug_info.with_dbg ~module_name:"" ~name:__FUNCTION__ @@ fun _ ->
+  let exists _ dbg id =
+    Debug_info.with_dbg ~module_name:"" ~name:__FUNCTION__ ~dbg @@ fun _ ->
     match DB.read id with Some _ -> true | None -> false
 
   let list _ dbg () =

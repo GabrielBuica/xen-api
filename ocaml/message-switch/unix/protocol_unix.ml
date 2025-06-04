@@ -364,10 +364,8 @@ module Client = struct
             do_rpc c.requests_conn (In.CreatePersistent dest_queue_name)
             >>|= fun (_ : string) ->
             let msg =
-              Tracing.with_tracing
-                ~attributes:[("xs.message.body", x)]
-                ~parent:_traceparent ~name:"send_message"
-                (fun _ ->
+              Tracing.with_tracing ~parent:_traceparent
+                ~name:"Message_switch.send" (fun _ ->
                   In.Send
                     ( dest_queue_name
                     , {
@@ -375,7 +373,7 @@ module Client = struct
                       ; kind= Message.Request c.reply_queue_name
                       }
                     )
-                )
+              )
             in
             do_rpc c.requests_conn msg >>|= fun (id : string) ->
             match message_id_opt_of_rpc (Jsonrpc.of_string id) with
@@ -395,7 +393,8 @@ module Client = struct
     in
     loop () >>|= fun id ->
     (* now block waiting for our response *)
-    Tracing.with_tracing ~parent:_traceparent ~name:"read_response" @@ fun _ ->
+    Tracing.with_tracing ~parent:_traceparent ~name:"Message_switch.receive"
+    @@ fun _ ->
     match Ivar.read t with
     | Ok response ->
         (* release resources *)

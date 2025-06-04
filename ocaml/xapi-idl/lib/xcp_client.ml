@@ -41,22 +41,16 @@ let switch_rpc ?timeout queue_name string_of_call response_of_string =
   fun (call : Rpc.call) ->
     let _traceparent =
       call.params
-      |> List.find_map (fun param ->
-             match param with
-             | Rpc.Dict kv_list ->
-                 List.find_map
-                   (fun kv ->
-                     match kv with
-                     | "debug_info", Rpc.String debug_info ->
-                         let di = debug_info |> Debug_info.of_string in
-                         di.tracing
-                     | _ ->
-                         None
-                   )
-                   kv_list
+      |> List.find_map (function Rpc.Dict kv_list -> Some kv_list | _ -> None)
+      |> Fun.flip Option.bind
+           (List.find_map (function
+             | "debug_info", Rpc.String debug_info ->
+                 let di = debug_info |> Debug_info.of_string in
+                 di.tracing
              | _ ->
                  None
-         )
+             )
+             )
     in
     response_of_string
       (get_ok
