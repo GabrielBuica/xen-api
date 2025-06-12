@@ -2691,6 +2691,12 @@ let update_vif ~__context id =
                           let pif_name =
                             Db.PIF.get_device ~__context ~self:pif
                           in
+                          let@ _ =
+                            Context.with_tracing ~__context
+                              ("Monitor_dbcalls_cache.clear_cache_for_pif "
+                              ^ pif_name
+                              )
+                          in
                           Monitor_dbcalls_cache.clear_cache_for_pif ~pif_name
                         )
                         pifs
