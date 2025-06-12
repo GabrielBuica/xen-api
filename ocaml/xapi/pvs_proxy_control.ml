@@ -375,7 +375,10 @@ let clear_proxy_state ~__context _vif proxy =
   Db.PVS_proxy.set_currently_attached ~__context ~self:proxy ~value:false ;
   Db.PVS_proxy.set_status ~__context ~self:proxy ~value:`stopped
 
+let ( let@ ) f x = f x
+
 let find_proxy_for_vif ~__context ~vif =
+  let@ __context = Context.with_tracing ~__context __FUNCTION__ in
   let open Xapi_database.Db_filter_types in
   let proxies =
     Db.PVS_proxy.get_refs_where ~__context

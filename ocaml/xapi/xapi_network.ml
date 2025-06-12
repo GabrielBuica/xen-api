@@ -175,7 +175,10 @@ let register_vif ~__context vif =
       Hashtbl.replace active_vifs_to_networks vif network
   )
 
+let ( let@ ) f x = f x
+
 let deregister_vif ~__context vif =
+  let@ __context = Context.with_tracing ~__context __FUNCTION__ in
   let network = Db.VIF.get_network ~__context ~self:vif in
   let network_rc = Db.Network.get_record ~__context ~self:network in
   let bridge = network_rc.API.network_bridge in

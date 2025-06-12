@@ -70,7 +70,10 @@ let assert_pif_disallow_unplug_not_set ~__context pif =
          (Api_errors.pif_does_not_allow_unplug, [Ref.string_of pif])
       )
 
+let ( let@ ) f x = f x
+
 let get_local_pifs ~__context ~network ~host =
+  let@ __context = Context.with_tracing ~__context __FUNCTION__ in
   (* There should be at most one local PIF by construction *)
   Db.PIF.get_refs_where ~__context
     ~expr:

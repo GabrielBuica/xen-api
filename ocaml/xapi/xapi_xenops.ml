@@ -2192,7 +2192,6 @@ let update_vm ~__context id =
                 debug "xenopsd event: Updating VM %s consoles" id ;
                 Option.iter
                   (fun state ->
-                    let localhost = Helpers.get_localhost ~__context in
                     let address =
                       Db.Host.get_address ~__context ~self:localhost
                     in
@@ -2683,10 +2682,9 @@ let update_vif ~__context id =
                     ) ;
                     (* Clear monitor cache for associated PIF if pass_through_pif_carrier is set *)
                     if !Xapi_globs.pass_through_pif_carrier then
-                      let host = Helpers.get_localhost ~__context in
                       let pifs =
                         Xapi_network_attach_helpers.get_local_pifs ~__context
-                          ~network:vifr.API.vIF_network ~host
+                          ~network:vifr.API.vIF_network ~host:localhost
                       in
                       List.iter
                         (fun pif ->
