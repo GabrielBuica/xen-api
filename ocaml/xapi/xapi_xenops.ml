@@ -2670,9 +2670,8 @@ let update_vif ~__context id =
                                  (fst id) (snd id)
                               )
                         | Some device ->
-                            let dbg =
-                              Context.string_of_task_and_tracing __context
-                            in
+                            let@ __context = Context.with_tracing ~__context
+                          "get_and_set_mtu" in
                             let mtu = Net.Interface.get_mtu dbg device in
                             Db.VIF.set_MTU ~__context ~self:vif
                               ~value:(Int64.of_int mtu)
