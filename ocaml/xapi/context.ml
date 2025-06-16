@@ -50,6 +50,13 @@ type t = {
   ; mutable test_clusterd_rpc: (Rpc.call -> Rpc.response) option
 }
 
+let add_session __context session_id =
+  match __context.session_id with
+  | None ->
+      {__context with session_id= Some session_id}
+  | Some _ ->
+      __context
+
 let complete_tracing ?error __context =
   ( match Tracing.Tracer.finish ?error __context.tracing with
   | Ok _ ->

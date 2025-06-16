@@ -18,6 +18,7 @@ type t
 
 type origin = Http of Http.Request.t * Unix.file_descr | Internal
 
+val add_session : t -> API.ref_session -> t
 (** {6 Constructors} *)
 
 val make :

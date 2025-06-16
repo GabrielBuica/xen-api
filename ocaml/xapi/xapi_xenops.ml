@@ -3039,15 +3039,16 @@ let rec events_watch ~__context cancel queue_name from =
   events_watch ~__context cancel queue_name (Some next)
 
 let events_from_xenopsd queue_name =
-  Server_helpers.exec_with_new_task (Printf.sprintf "%s events" queue_name)
-    (fun __context ->
-      while true do
-        try events_watch ~__context (ref false) queue_name None
-        with e ->
-          error "%s event thread caught: %s" queue_name (string_of_exn e) ;
-          Thread.delay 10.
-      done
-  )
+  let@ __context =
+    Server_helpers.exec_with_new_task (Printf.sprintf "%s events" queue_name)
+  in
+  let@ __context = Helpers.with_session ~__context in
+  while true do
+    try events_watch ~__context (ref false) queue_name None
+    with e ->
+      error "%s event thread caught: %s" queue_name (string_of_exn e) ;
+      Thread.delay 10.
+  done
 
 let refresh_vm ~__context ~self =
   let@ __context = Context.with_tracing ~__context __FUNCTION__ in

@@ -590,6 +590,57 @@ let call_api_functions ~__context f =
   | None ->
       call_api_functions_internal ~__context f
 
+(** Log into pool master using the client code, call a function
+    passing it the rpc function and session id, logout when finished. *)
+let with_session_internal ~__context f =
+  let rpc = make_rpc ~__context in
+  (* let () = debug "logging into master" in *)
+  (* If we're the master then our existing session may be a client one without 'pool' flag set, so
+     we consider making a new one.
+     If we're a slave then our existing session (if we have one) may have the 'pool' flag set
+     because it would have been created for us in the message forwarding layer in the master,
+     so we just re-use it. However sometimes the session is directly created in slave without 'pool'
+     flag set (e.g. cross pool VM import).
+     So no matter we are master or slave we have to make sure get a session with 'pool' flag set.
+     If we haven't got an existing session in our context then we always make a new one *)
+  let do_master_login () =
+    let session =
+      Client.Client.Session.slave_login ~rpc ~host:(get_localhost ~__context)
+        ~psecret:(Xapi_globs.pool_secret ())
+    in
+    session
+  in
+  let session_id =
+    let f () =
+      let session_id = Context.get_session_id __context in
+      (* read attr to test if session is still valid *)
+      let in_pool = Db.Session.get_pool ~__context ~self:session_id in
+      (session_id, in_pool)
+    in
+    match f () with
+    | session_id, true ->
+        session_id
+    | _ ->
+        do_master_login ()
+    | exception _ ->
+        do_master_login ()
+  in
+  let __context = Context.add_session __context session_id in
+  (* let () = debug "login done" in *)
+  finally
+    (fun () -> f __context)
+    (fun () ->
+      (* debug "remote client call finished; logging out"; *)
+      try Client.Client.Session.logout ~rpc ~session_id
+      with e ->
+        debug "Helpers.call_api_functions failed to logout: %s (ignoring)"
+          (Printexc.to_string e)
+    )
+
+let with_session ~__context f =
+  Context.with_tracing ~__context __FUNCTION__ @@ fun __context ->
+  with_session_internal ~__context f
+
 let call_emergency_mode_functions hostname f =
   let open Xmlrpc_client in
   let transport =
