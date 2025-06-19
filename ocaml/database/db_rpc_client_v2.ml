@@ -95,21 +95,21 @@ functor
       | _ ->
           raise Remote_db_server_returned_bad_message
 
-    let create_row _ x y z =
+    let create_row ~span_parent _ x y z =
       match process (Request.Create_row (x, y, z)) with
       | Response.Create_row y ->
           y
       | _ ->
           raise Remote_db_server_returned_bad_message
 
-    let delete_row _ x y =
+    let delete_row ~span_parent _ x y =
       match process (Request.Delete_row (x, y)) with
       | Response.Delete_row y ->
           y
       | _ ->
           raise Remote_db_server_returned_bad_message
 
-    let write_field _ a b c d =
+    let write_field ~span_parent _ a b c d =
       match process (Request.Write_field (a, b, c, d)) with
       | Response.Write_field y ->
           y
@@ -144,7 +144,7 @@ functor
       | _ ->
           raise Remote_db_server_returned_bad_message
 
-    let process_structured_field _ a b c d e =
+    let process_structured_field ~span_parent _ a b c d e =
       match process (Request.Process_structured_field (a, b, c, d, e)) with
       | Response.Process_structured_field y ->
           y

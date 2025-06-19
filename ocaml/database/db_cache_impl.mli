@@ -13,7 +13,7 @@ val sync : Parse_db_conf.db_connection list -> Db_cache_types.Database.t -> unit
 val stats : Db_ref.t -> (string * int) list
 (** [stats t] returns some stats data for logging *)
 
-val touch_row : Db_ref.t -> string -> string -> unit
+val touch_row : span_parent:Tracing.Span.t option -> Db_ref.t -> string -> string -> unit
 (** [touch_row context tbl ref] bumps the generation count on [tbl], [ref] and
     generates a RefreshRow event *)
 

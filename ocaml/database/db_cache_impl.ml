@@ -77,16 +77,16 @@ let ensure_utf8_xml string =
 let ensure_utf8_xml_and_share string = string |> ensure_utf8_xml |> Share.merge
 
 (* Write field in cache *)
-let write_field_locked t tblname objref fldname newval =
+let write_field_locked ~span_parent t tblname objref fldname newval =
   let current_val = get_field tblname objref fldname (get_database t) in
   if current_val <> newval then (
     update_database t (set_field tblname objref fldname newval) ;
-    Database.notify
+    Database.notify ~span_parent
       (WriteField (tblname, objref, fldname, current_val, newval))
       (get_database t)
   )
 
-let write_field t tblname objref fldname newval =
+let write_field ~span_parent t tblname objref fldname newval =
   let newval =
     match newval with
     | Schema.Value.String s ->
@@ -99,11 +99,11 @@ let write_field t tblname objref fldname newval =
     | _ ->
         newval
   in
-  with_lock (fun () -> write_field_locked t tblname objref fldname newval)
+  with_lock (fun () -> write_field_locked ~span_parent t tblname objref fldname newval)
 
-let touch_row t tblname objref =
+let touch_row ~span_parent t tblname objref =
   update_database t (touch tblname objref) ;
-  Database.notify (RefreshRow (tblname, objref)) (get_database t)
+  Database.notify ~span_parent (RefreshRow (tblname, objref)) (get_database t)
 
 (* setrefs contain the relationships from tbl to other tables in the form:
    local-classname, local-fieldname, remote-classname, remote-fieldname.
@@ -145,14 +145,14 @@ let read_record t =
   read_record_internal Schema.CachedValue.open_present (get_database t)
 
 (* Delete row from tbl *)
-let delete_row_locked t tblname objref =
+let delete_row_locked ~span_parent t tblname objref =
   try
     let tbl = TableSet.find tblname (Database.tableset (get_database t)) in
     let row = Table.find objref tbl in
     let db = get_database t in
-    Database.notify (PreDelete (tblname, objref)) db ;
+    Database.notify ~span_parent (PreDelete (tblname, objref)) db ;
     update_database t (remove_row tblname objref) ;
-    Database.notify
+    Database.notify ~span_parent
       (Delete
          ( tblname
          , objref
@@ -164,12 +164,12 @@ let delete_row_locked t tblname objref =
       (get_database t)
   with Not_found -> raise (DBCache_NotFound ("missing row", tblname, objref))
 
-let delete_row t tblname objref =
+let delete_row ~span_parent t tblname objref =
   W.debug "delete_row %s (%s)" tblname objref ;
-  with_lock (fun () -> delete_row_locked t tblname objref)
+  with_lock (fun () -> delete_row_locked ~span_parent t tblname objref)
 
 (* Create new row in tbl containing specified k-v pairs *)
-let create_row_locked t tblname kvs' new_objref =
+let create_row_locked ~span_parent t tblname kvs' new_objref =
   let db = get_database t in
   let g = Manifest.generation (Database.manifest db) in
   let row =
@@ -179,7 +179,7 @@ let create_row_locked t tblname kvs' new_objref =
   (* fill in default values if kv pairs for these are not supplied already *)
   let row = Row.add_defaults g schema row in
   update_database t (add_row tblname new_objref row) ;
-  Database.notify
+  Database.notify ~span_parent
     (Create
        ( tblname
        , new_objref
@@ -197,7 +197,7 @@ let fld_check t tblname objref (fldname, value) =
   in
   (v = Schema.CachedValue.string_of value, fldname, v)
 
-let create_row' t tblname kvs' new_objref =
+let create_row' ~span_parent t tblname kvs' new_objref =
   with_lock (fun () ->
       if is_valid_ref t new_objref then
         let uniq_check_list = List.map (fld_check t tblname new_objref) kvs' in
@@ -220,10 +220,10 @@ let create_row' t tblname kvs' new_objref =
           (String.concat ","
              (List.map (fun (k, _) -> Printf.sprintf "(%s,v)" k) kvs')
           ) ;
-        create_row_locked t tblname kvs' new_objref
+        create_row_locked ~span_parent t tblname kvs' new_objref
   )
 
-let create_row t tblname kvs' new_objref =
+let create_row ~span_parent t tblname kvs' new_objref =
   let kvs' =
     List.map
       (fun (key, value) ->
@@ -246,7 +246,7 @@ let create_row t tblname kvs' new_objref =
       )
       kvs'
   in
-  create_row' t tblname kvs' new_objref
+  create_row' ~span_parent t tblname kvs' new_objref
 
 (* Do linear scan to find field values which match where clause *)
 let read_field_where' conv t rcd =
@@ -343,7 +343,7 @@ let read_records_where' conv t tbl expr =
 let read_records_where t tbl expr =
   read_records_where' Schema.CachedValue.open_present t tbl expr
 
-let process_structured_field_locked t (key, value) tblname fld objref
+let process_structured_field_locked ~span_parent t (key, value) tblname fld objref
     proc_fn_selector =
   try
     let tbl = TableSet.find tblname (Database.tableset (get_database t)) in
@@ -376,16 +376,16 @@ let process_structured_field_locked t (key, value) tblname fld objref
       | RemoveMap ->
           remove_from_map key existing_str
     in
-    write_field_locked t tblname objref fld newval
+    write_field_locked ~span_parent t tblname objref fld newval
   with Not_found -> raise (DBCache_NotFound ("missing row", tblname, objref))
 
-let process_structured_field t (key, value) tblname fld objref proc_fn_selector
+let process_structured_field ~span_parent t (key, value) tblname fld objref proc_fn_selector
     =
   (* Ensure that both keys and values are valid for UTF-8-encoded XML. *)
   let key = ensure_utf8_xml_and_share key in
   let value = ensure_utf8_xml_and_share value in
   with_lock (fun () ->
-      process_structured_field_locked t (key, value) tblname fld objref
+      process_structured_field_locked ~span_parent t (key, value) tblname fld objref
         proc_fn_selector
   )
 
@@ -555,12 +555,12 @@ module Compat = struct
   let read_field t tblname fldname objref =
     read_field t tblname fldname objref |> Schema.CachedValue.string_of
 
-  let write_field t tblname objref fldname newval =
+  let write_field ~span_parent t tblname objref fldname newval =
     let db = get_database t in
     let schema = Schema.table tblname (Database.schema db) in
     let column = Schema.Table.find fldname schema in
     let newval = Schema.Value.unmarshal column.Schema.Column.ty newval in
-    write_field t tblname objref fldname newval
+    write_field ~span_parent t tblname objref fldname newval
 
   let read_record t =
     read_record_internal Schema.CachedValue.string_of (get_database t)
@@ -568,7 +568,7 @@ module Compat = struct
   let read_records_where t tbl expr =
     read_records_where' Schema.CachedValue.string_of t tbl expr
 
-  let create_row t tblname kvs' new_objref =
+  let create_row ~span_parent t tblname kvs' new_objref =
     let db = get_database t in
     let schema = Schema.table tblname (Database.schema db) in
     let kvs' =
@@ -579,5 +579,5 @@ module Compat = struct
         )
         kvs'
     in
-    create_row' t tblname kvs' new_objref
+    create_row' ~span_parent t tblname kvs' new_objref
 end

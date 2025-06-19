@@ -42,11 +42,11 @@ let process_rpc (req : Rpc.t) =
         | Request.Db_get_by_name_label (a, b) ->
             Response.Db_get_by_name_label (DB.db_get_by_name_label t a b)
         | Request.Create_row (a, b, c) ->
-            Response.Create_row (DB.create_row t a b c)
+            Response.Create_row (DB.create_row ~span_parent:None t a b c)
         | Request.Delete_row (a, b) ->
-            Response.Delete_row (DB.delete_row t a b)
+            Response.Delete_row (DB.delete_row ~span_parent:None t a b)
         | Request.Write_field (a, b, c, d) ->
-            Response.Write_field (DB.write_field t a b c d)
+            Response.Write_field (DB.write_field ~span_parent:None t a b c d)
         | Request.Read_field (a, b, c) ->
             Response.Read_field (DB.read_field t a b c)
         | Request.Read_record (a, b) ->
@@ -56,7 +56,7 @@ let process_rpc (req : Rpc.t) =
             Response.Read_records_where (DB.read_records_where t a b)
         | Request.Process_structured_field (a, b, c, d, e) ->
             Response.Process_structured_field
-              (DB.process_structured_field t a b c d e)
+              (DB.process_structured_field ~span_parent:None t a b c d e)
       with
     | DBCache_NotFound (x, y, z) ->
         Response.Dbcache_notfound (x, y, z)

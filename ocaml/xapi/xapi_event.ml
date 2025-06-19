@@ -785,7 +785,7 @@ let inject ~__context ~_class ~_ref =
         if not ok then
           raise
             (Api_errors.Server_error (Api_errors.handle_invalid, [_class; _ref])) ;
-        Db_cache_impl.touch_row db_ref _class _ref ;
+        Db_cache_impl.touch_row ~span_parent:(Context.tracing_of __context) db_ref _class _ref ;
         (* consumes this generation *)
         g
     )

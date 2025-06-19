@@ -62,14 +62,14 @@ module DBCacheRemoteListener = struct
             (marshall_read_field_where_response (DBCache.read_field_where t w))
       | "create_row" ->
           let s1, ssl, s2 = unmarshall_create_row_args args in
-          success (marshall_create_row_response (DBCache.create_row t s1 ssl s2))
+          success (marshall_create_row_response (DBCache.create_row ~span_parent:None t s1 ssl s2))
       | "delete_row" ->
           let s1, s2 = unmarshall_delete_row_args args in
-          success (marshall_delete_row_response (DBCache.delete_row t s1 s2))
+          success (marshall_delete_row_response (DBCache.delete_row ~span_parent:None t s1 s2))
       | "write_field" ->
           let s1, s2, s3, s4 = unmarshall_write_field_args args in
           success
-            (marshall_write_field_response (DBCache.write_field t s1 s2 s3 s4))
+            (marshall_write_field_response (DBCache.write_field ~span_parent:None t s1 s2 s3 s4))
       | "read_field" ->
           let s1, s2, s3 = unmarshall_read_field_args args in
           success (marshall_read_field_response (DBCache.read_field t s1 s2 s3))
@@ -85,7 +85,7 @@ module DBCacheRemoteListener = struct
           in
           success
             (marshall_process_structured_field_response
-               (DBCache.process_structured_field t ss s1 s2 s3 op)
+               (DBCache.process_structured_field ~span_parent:None t ss s1 s2 s3 op)
             )
       | "read_record" ->
           let s1, s2 = unmarshall_read_record_args args in

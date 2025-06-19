@@ -197,11 +197,11 @@ module Database : sig
 
   val reindex : t -> t
 
-  val register_callback : string -> (update -> t -> unit) -> t -> t
+  val register_callback : string -> (span_parent:Tracing.Span.t option -> update -> t -> unit) -> t -> t
 
   val unregister_callback : string -> t -> t
 
-  val notify : update -> t -> unit
+  val notify : span_parent:Tracing.Span.t option -> update -> t -> unit
 end
 
 exception Duplicate

@@ -100,15 +100,15 @@ functor
       do_remote_call marshall_db_get_by_name_label_args
         unmarshall_db_get_by_name_label_response "db_get_by_name_label" (t, l)
 
-    let create_row _ x y z =
+    let create_row ~span_parent _ x y z =
       do_remote_call marshall_create_row_args unmarshall_create_row_response
         "create_row" (x, y, z)
 
-    let delete_row _ x y =
+    let delete_row ~span_parent _ x y =
       do_remote_call marshall_delete_row_args unmarshall_delete_row_response
         "delete_row" (x, y)
 
-    let write_field _ a b c d =
+    let write_field ~span_parent _ a b c d =
       do_remote_call marshall_write_field_args unmarshall_write_field_response
         "write_field" (a, b, c, d)
 
@@ -128,7 +128,7 @@ functor
       do_remote_call marshall_read_records_where_args
         unmarshall_read_records_where_response "read_records_where" (x, e)
 
-    let process_structured_field _ a b c d e =
+    let process_structured_field ~span_parent _ a b c d e =
       do_remote_call marshall_process_structured_field_args
         unmarshall_process_structured_field_response "process_structured_field"
         (a, b, c, d, e)

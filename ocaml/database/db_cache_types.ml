@@ -373,7 +373,7 @@ module Database = struct
     ; manifest: Manifest.t
     ; schema: Schema.t
     ; keymap: (string * string) KeyMap.t
-    ; callbacks: (string * (update -> t -> unit)) list
+    ; callbacks: (string * (span_parent:Tracing.Span.t option -> update -> t -> unit)) list
   }
 
   let update_manifest f x = {x with manifest= f x.manifest}
@@ -403,17 +403,17 @@ module Database = struct
 
   let[@inline never] [@specialize never] notify_end () = ()
 
-  let notify e db =
+  let notify ~span_parent e db =
     notify_begin () ;
     List.iter
       (fun (name, f) ->
-        try f e db
+      try f ~span_parent e db
         with e ->
           Printf.printf "Caught %s from database callback '%s'\n%!"
             (Printexc.to_string e) name ;
           ()
       )
-      db.callbacks ;
+      db.callbacks;
     notify_end ()
 
   let reindex x =

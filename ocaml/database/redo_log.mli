@@ -117,5 +117,6 @@ val flush_db_to_all_active_redo_logs : Db_cache_types.Database.t -> unit
 (** Immediately write the given database to all active redo logs *)
 
 val database_callback :
+  span_parent: Tracing.Span.t option ->
   Db_cache_types.update -> Db_cache_types.Database.t -> unit
 (** Given a database update, add it to all active redo logs *)

@@ -344,7 +344,7 @@ functor
       let vbd_uuid = "vbduuid" in
       let vbd2 = "vbdref2" in
       let vbd_uuid2 = "vbduuid2" in
-      Client.create_row t "VM" (make_vm vm vm_uuid) vm ;
+      Client.create_row ~span_parent:None t "VM" (make_vm vm vm_uuid) vm ;
       let db = Db_ref.get_database t in
       let g2 = get_max db in
       Printf.printf "generation after create_row is: %Ld\n" g2 ;
@@ -357,7 +357,7 @@ functor
       else (
         Printf.printf "Fail\n" ; failwith "Event problem"
       ) ;
-      let (_ : unit) = Client.write_field t "VM" vm name_label "moo" in
+      let (_ : unit) = Client.write_field ~span_parent:None t "VM" vm name_label "moo" in
       let db = Db_ref.get_database t in
       let g3 = get_max db in
       Printf.printf "generation after write_field is: %Ld\n" g3 ;
@@ -371,7 +371,7 @@ functor
       else (
         Printf.printf "Fail\n" ; failwith "Event problem"
       ) ;
-      Client.create_row t "VBD" (make_vbd vm vbd vbd_uuid) vbd ;
+      Client.create_row ~span_parent:None t "VBD" (make_vbd vm vbd vbd_uuid) vbd ;
       let db = Db_ref.get_database t in
       let g4 = get_max db in
       Printf.printf "generation after create VBD is: %Ld\n" g4 ;
@@ -385,7 +385,7 @@ functor
       else (
         Printf.printf "Fail\n" ; failwith "Event problem"
       ) ;
-      let (_ : unit) = Client.write_field t "VBD" vbd "VM" "moo" in
+      let (_ : unit) = Client.write_field ~span_parent:None t "VBD" vbd "VM" "moo" in
       let db = Db_ref.get_database t in
       let g5 = get_max db in
       Printf.printf "generation after write_field is: %Ld\n" g5 ;
@@ -399,7 +399,7 @@ functor
       else (
         Printf.printf "Fail\n" ; failwith "Event problem"
       ) ;
-      let (_ : unit) = Client.write_field t "VBD" vbd "type" "Banana" in
+      let (_ : unit) = Client.write_field ~span_parent:None t "VBD" vbd "type" "Banana" in
       let db = Db_ref.get_database t in
       let g6 = get_max db in
       Printf.printf "generation after write_field is: %Ld\n" g6 ;
@@ -415,7 +415,7 @@ functor
       else (
         Printf.printf "Fail\n" ; failwith "Event problem"
       ) ;
-      let (_ : unit) = Client.delete_row t "VBD" vbd in
+      let (_ : unit) = Client.delete_row ~span_parent:None t "VBD" vbd in
       let db = Db_ref.get_database t in
       let g7 = get_max db in
       Printf.printf "generation after delete VBD is: %Ld\n" g7 ;
@@ -426,8 +426,8 @@ functor
       else (
         Printf.printf "Fail\n" ; failwith "Event problem"
       ) ;
-      Client.create_row t "VBD" (make_vbd vm vbd vbd_uuid) vbd ;
-      let (_ : unit) = Client.delete_row t "VBD" vbd in
+      Client.create_row ~span_parent:None t "VBD" (make_vbd vm vbd vbd_uuid) vbd ;
+      let (_ : unit) = Client.delete_row ~span_parent:None t "VBD" vbd in
       let db = Db_ref.get_database t in
       let g8 = get_max db in
       Printf.printf "generation after create/delete VBD is: %Ld\n" g8 ;
@@ -440,12 +440,12 @@ functor
         Printf.printf "Fail\n" ; failwith "Event problem"
       ) ;
       dump db g7 ;
-      Client.create_row t "VBD" (make_vbd vm vbd vbd_uuid) vbd ;
+      Client.create_row ~span_parent:None t "VBD" (make_vbd vm vbd vbd_uuid) vbd ;
       let db = Db_ref.get_database t in
       let g9 = get_max db in
-      let (_ : unit) = Client.delete_row t "VBD" vbd in
-      Client.create_row t "VBD" (make_vbd vm vbd2 vbd_uuid2) vbd2 ;
-      let (_ : unit) = Client.delete_row t "VBD" vbd2 in
+      let (_ : unit) = Client.delete_row ~span_parent:None t "VBD" vbd in
+      Client.create_row ~span_parent:None t "VBD" (make_vbd vm vbd2 vbd_uuid2) vbd2 ;
+      let (_ : unit) = Client.delete_row ~span_parent:None t "VBD" vbd2 in
       let db = Db_ref.get_database t in
       let g10 = get_max db in
       Printf.printf "===TEST=== Checking for masking of delete events: " ;
@@ -476,11 +476,11 @@ functor
       check_many_to_many () ;
       (* Before we begin, clear out any old state: *)
       expect_missing_row "VM" valid_ref (fun () ->
-          Client.delete_row t "VM" valid_ref
+          Client.delete_row ~span_parent:None t "VM" valid_ref
       ) ;
       if in_process then check_ref_index t "VM" valid_ref ;
       expect_missing_row "VBD" vbd_ref (fun () ->
-          Client.delete_row t "VBD" vbd_ref
+          Client.delete_row ~span_parent:None t "VBD" vbd_ref
       ) ;
       if in_process then check_ref_index t "VBD" vbd_ref ;
       Printf.printf "Deleted stale state from previous test\n" ;
@@ -504,7 +504,7 @@ functor
       ) ;
       Printf.printf "delete_row <invalid ref>\n" ;
       expect_missing_row "VM" invalid_ref (fun () ->
-          Client.delete_row t "VM" invalid_ref ;
+          Client.delete_row ~span_parent:None t "VM" invalid_ref ;
           failwith "delete_row of a non-existent row silently succeeded"
       ) ;
       Printf.printf
@@ -515,12 +515,12 @@ functor
               (fun (k, _) -> k <> name_label)
               (make_vm valid_ref valid_uuid)
           in
-          Client.create_row t "VM" broken_vm valid_ref ;
+          Client.create_row ~span_parent:None t "VM" broken_vm valid_ref ;
           failwith
             "create_row <unique ref> <unique uuid> <missing required field>"
       ) ;
       Printf.printf "create_row <unique ref> <unique uuid>\n" ;
-      Client.create_row t "VM" (make_vm valid_ref valid_uuid) valid_ref ;
+      Client.create_row ~span_parent:None t "VM" (make_vm valid_ref valid_uuid) valid_ref ;
       if in_process then check_ref_index t "VM" valid_ref ;
       Printf.printf "is_valid_ref <valid ref>\n" ;
       if not (Client.is_valid_ref t valid_ref) then
@@ -538,17 +538,17 @@ functor
       if not (List.mem valid_ref (Client.read_refs t "VM")) then
         failwith "read_refs did not include <valid ref>" ;
       Printf.printf "create_row <duplicate ref> <duplicate uuid>\n" ;
-      Client.create_row t "VM" (make_vm valid_ref valid_uuid) valid_ref ;
+      Client.create_row ~span_parent:None t "VM" (make_vm valid_ref valid_uuid) valid_ref ;
       Printf.printf "create_row <duplicate ref> <unique uuid>\n" ;
       expect_integrity_violation "VM" "uuid" valid_uuid (fun () ->
-          Client.create_row t "VM"
+          Client.create_row ~span_parent:None t "VM"
             (make_vm valid_ref (valid_uuid ^ "unique"))
             valid_ref ;
           failwith "create_row <duplicate ref> <unique uuid>"
       ) ;
       Printf.printf "create_row <unique ref> <duplicate uuid>\n" ;
       expect_uniqueness_violation "VM" "uuid" valid_uuid (fun () ->
-          Client.create_row t "VM"
+          Client.create_row ~span_parent:None t "VM"
             (make_vm (valid_ref ^ "unique") valid_uuid)
             (valid_ref ^ "unique") ;
           failwith "create_row <unique ref> <duplicate uuid>"
@@ -628,31 +628,31 @@ functor
       test_invalid_where_record "read_field_where" (Client.read_field_where t) ;
       Printf.printf "write_field <invalid table>\n" ;
       expect_missing_tbl "Vm" (fun () ->
-          let (_ : unit) = Client.write_field t "Vm" "" "" "" in
+          let (_ : unit) = Client.write_field ~span_parent:None t "Vm" "" "" "" in
           failwith "write_field <invalid table>"
       ) ;
       Printf.printf "write_field <valid table> <invalid ref>\n" ;
       expect_missing_row "VM" invalid_ref (fun () ->
           let (_ : unit) =
-            Client.write_field t "VM" invalid_ref name_label ""
+            Client.write_field ~span_parent:None t "VM" invalid_ref name_label ""
           in
           failwith "write_field <valid table> <invalid ref>"
       ) ;
       Printf.printf "write_field <valid table> <valid ref> <invalid field>\n" ;
       expect_missing_column "wibble" (fun () ->
-          let (_ : unit) = Client.write_field t "VM" valid_ref "wibble" "" in
+          let (_ : unit) = Client.write_field ~span_parent:None t "VM" valid_ref "wibble" "" in
           failwith "write_field <valid table> <valid ref> <invalid field>"
       ) ;
       Printf.printf "write_field <valid table> <valid ref> <valid field>\n" ;
       let (_ : unit) =
-        Client.write_field t "VM" valid_ref name_description "description"
+        Client.write_field ~span_parent:None t "VM" valid_ref name_description "description"
       in
       if in_process then check_ref_index t "VM" valid_ref ;
       Printf.printf
         "write_field <valid table> <valid ref> <valid field> - invalidating \
          ref_index\n" ;
       let (_ : unit) =
-        Client.write_field t "VM" valid_ref name_label "newlabel"
+        Client.write_field ~span_parent:None t "VM" valid_ref name_label "newlabel"
       in
       if in_process then check_ref_index t "VM" valid_ref ;
       Printf.printf "read_record <invalid table> <invalid ref>\n" ;
@@ -672,7 +672,7 @@ functor
       if List.assoc "VBDs" fvs_list <> [] then
         failwith "read_record <valid table> <valid ref> 2" ;
       Printf.printf "read_record <valid table> <valid ref> foreign key\n" ;
-      Client.create_row t "VBD" (make_vbd valid_ref vbd_ref vbd_uuid) vbd_ref ;
+      Client.create_row ~span_parent:None t "VBD" (make_vbd valid_ref vbd_ref vbd_uuid) vbd_ref ;
       let fv_list, fvs_list = Client.read_record t "VM" valid_ref in
       if List.assoc "VBDs" fvs_list <> [vbd_ref] then (
         Printf.printf "fv_list = [ %s ] fvs_list = [ %s ]\n%!"
@@ -684,17 +684,17 @@ functor
       ) ;
       Printf.printf
         "read_record <valid table> <valid ref> deleted foreign key\n" ;
-      Client.delete_row t "VBD" vbd_ref ;
+      Client.delete_row ~span_parent:None t "VBD" vbd_ref ;
       let _, fvs_list = Client.read_record t "VM" valid_ref in
       if List.assoc "VBDs" fvs_list <> [] then
         failwith "read_record <valid table> <valid ref> 4" ;
       Printf.printf
         "read_record <valid table> <valid ref> overwritten foreign key\n" ;
-      Client.create_row t "VBD" (make_vbd valid_ref vbd_ref vbd_uuid) vbd_ref ;
+      Client.create_row ~span_parent:None t "VBD" (make_vbd valid_ref vbd_ref vbd_uuid) vbd_ref ;
       let _, fvs_list = Client.read_record t "VM" valid_ref in
       if List.assoc "VBDs" fvs_list = [] then
         failwith "read_record <valid table> <valid ref> 5" ;
-      Client.write_field t "VBD" vbd_ref "VM" "overwritten" ;
+      Client.write_field ~span_parent:None t "VBD" vbd_ref "VM" "overwritten" ;
       let _, fvs_list = Client.read_record t "VM" valid_ref in
       if List.assoc "VBDs" fvs_list <> [] then
         failwith "read_record <valid table> <valid ref> 6" ;
@@ -719,39 +719,39 @@ functor
       if xs <> [] then
         failwith "find_refs_with_filter <valid table> 2" ;
       expect_missing_tbl "Vm" (fun () ->
-          Client.process_structured_field t ("", "") "Vm" "wibble" invalid_ref
+          Client.process_structured_field ~span_parent:None t ("", "") "Vm" "wibble" invalid_ref
             Db_cache_types.AddSet ;
           failwith
             "process_structure_field <invalid table> <invalid fld> <invalid \
              ref>"
       ) ;
       expect_missing_field "wibble" (fun () ->
-          Client.process_structured_field t ("", "") "VM" "wibble" valid_ref
+          Client.process_structured_field ~span_parent:None t ("", "") "VM" "wibble" valid_ref
             Db_cache_types.AddSet ;
           failwith
             "process_structure_field <valid table> <invalid fld> <valid ref>"
       ) ;
       expect_missing_row "VM" invalid_ref (fun () ->
-          Client.process_structured_field t ("", "") "VM" name_label invalid_ref
+          Client.process_structured_field ~span_parent:None t ("", "") "VM" name_label invalid_ref
             Db_cache_types.AddSet ;
           failwith
             "process_structure_field <valid table> <valid fld> <invalid ref>"
       ) ;
-      Client.process_structured_field t ("foo", "") "VM" "tags" valid_ref
+      Client.process_structured_field ~span_parent:None t ("foo", "") "VM" "tags" valid_ref
         Db_cache_types.AddSet ;
       if Client.read_field t "VM" "tags" valid_ref <> "('foo')" then
         failwith "process_structure_field expected ('foo')" ;
-      Client.process_structured_field t ("foo", "") "VM" "tags" valid_ref
+      Client.process_structured_field ~span_parent:None t ("foo", "") "VM" "tags" valid_ref
         Db_cache_types.AddSet ;
       if Client.read_field t "VM" "tags" valid_ref <> "('foo')" then
         failwith "process_structure_field expected ('foo') 2" ;
-      Client.process_structured_field t ("foo", "bar") "VM" "other_config"
+      Client.process_structured_field ~span_parent:None t ("foo", "bar") "VM" "other_config"
         valid_ref Db_cache_types.AddMap ;
       if Client.read_field t "VM" "other_config" valid_ref <> "(('foo' 'bar'))"
       then
         failwith "process_structure_field expected (('foo' 'bar')) 3" ;
       ( try
-          Client.process_structured_field t ("foo", "bar") "VM" "other_config"
+          Client.process_structured_field ~span_parent:None t ("foo", "bar") "VM" "other_config"
             valid_ref Db_cache_types.AddMap
         with
         | Db_exn.Duplicate_key ("VM", "other_config", r', "foo")
@@ -789,12 +789,12 @@ functor
         let delete_time =
           time n (fun i ->
               let rf = Printf.sprintf "%s:%d" vbd_ref i in
-              try Client.delete_row t "VBD" rf with _ -> ()
+              try Client.delete_row ~span_parent:None t "VBD" rf with _ -> ()
           )
         in
         Printf.printf "Deleted %d VBD records, %.2f calls/sec\n%!" n delete_time ;
         expect_missing_row "VBD" vbd_ref (fun () ->
-            Client.delete_row t "VBD" vbd_ref
+            Client.delete_row ~span_parent:None t "VBD" vbd_ref
         ) ;
         (* Create lots of VBDs referening no VM *)
         let create_time =
@@ -814,11 +814,11 @@ functor
           time m (fun i ->
               if i < m / 3 * 2 then
                 if i mod 2 = 0 then
-                  Client.create_row t "VBD"
+                  Client.create_row ~span_parent:None t "VBD"
                     (make_vbd valid_ref vbd_ref vbd_uuid)
                     vbd_ref
                 else
-                  Client.delete_row t "VBD" vbd_ref
+                  Client.delete_row ~span_parent:None t "VBD" vbd_ref
               else
                 let _ = Client.read_record t "VM" valid_ref in
                 ()
@@ -829,11 +829,11 @@ functor
           time m (fun i ->
               match i mod 3 with
               | 0 ->
-                  Client.create_row t "VBD"
+                  Client.create_row ~span_parent:None t "VBD"
                     (make_vbd valid_ref vbd_ref vbd_uuid)
                     vbd_ref
               | 1 ->
-                  Client.delete_row t "VBD" vbd_ref
+                  Client.delete_row ~span_parent:None t "VBD" vbd_ref
               | 2 ->
                   let _ = Client.read_record t "VM" valid_ref in
                   ()

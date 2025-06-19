@@ -533,7 +533,8 @@ let db_action api : O.Module.t =
     let body =
       match tag with
       | FromField (Setter, fld) ->
-          Printf.sprintf "DB.write_field __t \"%s\" %s \"%s\" value"
+          Printf.sprintf "DB.write_field ~span_parent:(Context.tracing_of
+          __context) __t \"%s\" %s \"%s\" value"
             (Escaping.escape_obj obj.DT.name)
             Client._self
             (Escaping.escape_id fld.DT.full_name)
@@ -545,7 +546,8 @@ let db_action api : O.Module.t =
             Client._self
       | FromField (Add, {DT.ty= DT.Map (_, _); full_name; _}) ->
           Printf.sprintf
-            "DB.process_structured_field __t (Schema.Value.marshal %s, \
+            "DB.process_structured_field ~span_parent:(Context.tracing_of
+          __context) __t (Schema.Value.marshal %s, \
              Schema.Value.marshal %s) \"%s\" \"%s\" %s AddMapLegacy"
             Client._key Client._value
             (Escaping.escape_obj obj.DT.name)
@@ -553,7 +555,8 @@ let db_action api : O.Module.t =
             Client._self
       | FromField (Add, {DT.ty= DT.Set _; full_name; _}) ->
           Printf.sprintf
-            "DB.process_structured_field __t (Schema.Value.marshal %s,\"\") \
+            "DB.process_structured_field ~span_parent:(Context.tracing_of
+          __context) __t (Schema.Value.marshal %s,\"\") \
              \"%s\" \"%s\" %s AddSet"
             Client._value
             (Escaping.escape_obj obj.DT.name)
@@ -561,7 +564,8 @@ let db_action api : O.Module.t =
             Client._self
       | FromField (Remove, {DT.ty= DT.Map (_, _); full_name; _}) ->
           Printf.sprintf
-            "DB.process_structured_field __t (Schema.Value.marshal %s,\"\") \
+            "DB.process_structured_field ~span_parent:(Context.tracing_of
+          __context) __t (Schema.Value.marshal %s,\"\") \
              \"%s\" \"%s\" %s RemoveMap"
             Client._key
             (Escaping.escape_obj obj.DT.name)
@@ -569,7 +573,8 @@ let db_action api : O.Module.t =
             Client._self
       | FromField (Remove, {DT.ty= DT.Set _; full_name; _}) ->
           Printf.sprintf
-            "DB.process_structured_field __t (Schema.Value.marshal %s,\"\") \
+            "DB.process_structured_field ~span_parent:(Context.tracing_of
+          __context) __t (Schema.Value.marshal %s,\"\") \
              \"%s\" \"%s\" %s RemoveSet"
             Client._value
             (Escaping.escape_obj obj.DT.name)
@@ -587,7 +592,8 @@ let db_action api : O.Module.t =
                   {|D.debug "deleting row from %s table: ref=%s" self ; |}
                   obj.name "%s"
           in
-          Printf.sprintf "%sDB.delete_row __t \"%s\" %s" log_prefix
+          Printf.sprintf "%sDB.delete_row ~span_parent:(Context.tracing_of
+          __context) __t \"%s\" %s" log_prefix
             (Escaping.escape_obj obj.DT.name)
             Client._self
       | FromObject Make ->
@@ -605,7 +611,8 @@ let db_action api : O.Module.t =
           let kvs' =
             List.map (fun (sql, o) -> Printf.sprintf "(\"%s\", %s)" sql o) kvs
           in
-          Printf.sprintf "DB.create_row __t \"%s\" [ %s ] ref"
+          Printf.sprintf "DB.create_row ~span_parent:(Context.tracing_of
+          __context) __t \"%s\" [ %s ] ref"
             (Escaping.escape_obj obj.DT.name)
             (String.concat "; " kvs')
       | FromObject GetByUuid -> (

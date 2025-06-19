@@ -74,10 +74,13 @@ module type DB_ACCESS_COMMON = sig
   (** [db_get_by_name_label tbl label] returns the list of object references
       		associated with [label] *)
 
-  val delete_row : Db_ref.t -> db_ref -> table -> unit
+  val delete_row :
+    span_parent: Tracing.Span.t option ->
+    Db_ref.t -> db_ref -> table -> unit
   (** [delete_row context tbl ref] deletes row [ref] from table [tbl] *)
 
   val process_structured_field :
+    span_parent: Tracing.Span.t option ->
        Db_ref.t
     -> field_name * string
     -> table
@@ -103,11 +106,13 @@ module type DB_ACCESS_FIELD = sig
       		equals [where_value] *)
 
   val create_row :
+    span_parent: Tracing.Span.t option ->
     Db_ref.t -> table -> field_in regular_fields -> db_ref -> unit
   (** [create_row tbl kvpairs ref] create a new row in [tbl] with
       		key [ref] and contents [kvpairs] *)
 
   val write_field :
+    span_parent: Tracing.Span.t option ->
     Db_ref.t -> table -> db_ref -> field_name -> field_in -> unit
   (** [write_field context tbl ref fld val] changes field [fld] to [val] in
       		row [ref] in table [tbl] *)

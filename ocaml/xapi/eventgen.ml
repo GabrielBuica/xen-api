@@ -218,8 +218,8 @@ let database_callback_inner event db ~__context =
       (* Emit modification events for any newly-referenced objects. *)
       compute_other_table_events tblname kvs |> emit_events ~kind:Modify
 
-let database_callback event db =
-  let __context = Context.make __MODULE__ in
+let database_callback ~span_parent event db =
+  let __context = Context.(make __MODULE__ ~origin:(Internal span_parent)) in
   Xapi_stdext_pervasives.Pervasiveext.finally
     (fun () -> database_callback_inner event db ~__context)
     (fun () -> Context.complete_tracing __context)

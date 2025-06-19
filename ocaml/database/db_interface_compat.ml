@@ -46,11 +46,11 @@ module OfCompat (DB : DB_ACCESS) : DB_ACCESS2 = struct
   let read_field_where t where =
     read_field_where t where |> List.map field_of_compat
 
-  let create_row t tbl fields ref =
-    create_row t tbl (compat_of_regular_fields fields) ref
+  let create_row ~span_parent t tbl fields ref =
+    create_row ~span_parent t tbl (compat_of_regular_fields fields) ref
 
-  let write_field t tbl ref fld field =
-    write_field t tbl ref fld (compat_of_field field)
+  let write_field ~span_parent t tbl ref fld field =
+    write_field ~span_parent t tbl ref fld (compat_of_field field)
 
   let read_field t tbl fld ref = read_field t tbl fld ref |> field_of_compat
 

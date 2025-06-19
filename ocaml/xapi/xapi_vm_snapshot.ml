@@ -175,7 +175,8 @@ let copy_vm_fields ~__context ~metadata ~dst ~do_not_copy ~overrides =
     (fun (key, value) ->
       let value = Option.value ~default:value (List.assoc_opt key overrides) in
       if not (List.mem key do_not_copy) then
-        try DB.write_field db Db_names.vm (Ref.string_of dst) key value
+        try DB.write_field ~span_parent:(Context.tracing_of
+          __context) db Db_names.vm (Ref.string_of dst) key value
         with Db_exn.DBCache_NotFound ("missing column", _, name) ->
           warn
             "%s: ignoring field '%s'. VM records do not contain it. The \

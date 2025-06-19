@@ -48,10 +48,10 @@ let apply_delta_to_cache entry db_ref =
   match entry with
   | Redo_log.CreateRow (tblname, objref, kvs) ->
       debug "Redoing create_row %s (%s)" tblname objref ;
-      DB.create_row db_ref tblname kvs objref
+      DB.create_row ~span_parent:None db_ref tblname kvs objref
   | Redo_log.DeleteRow (tblname, objref) ->
       debug "Redoing delete_row %s (%s)" tblname objref ;
-      DB.delete_row db_ref tblname objref
+      DB.delete_row ~span_parent:None db_ref tblname objref
   | Redo_log.WriteField (tblname, objref, fldname, newval) ->
       let removed =
         try lifecycle_state_of ~obj:tblname fldname = Removed_s
@@ -63,7 +63,7 @@ let apply_delta_to_cache entry db_ref =
       if not removed then (
         debug "Redoing write_field %s (%s) [%s -> %s]" tblname objref fldname
           newval ;
-        DB.write_field db_ref tblname objref fldname newval
+        DB.write_field ~span_parent:None db_ref tblname objref fldname newval
       ) else
         info
           "Field has been removed from the datamodel, ignoring write_field %s \

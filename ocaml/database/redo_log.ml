@@ -904,7 +904,8 @@ let flush_db_to_all_active_redo_logs db =
   with_active_redo_logs (fun log -> ignore (flush_db_to_redo_log db log))
 
 (* Write a delta to all active redo_logs *)
-let database_callback event db =
+let database_callback ~span_parent event db =
+  Tracing.with_tracing ~parent:span_parent ~name:__FUNCTION__ @@ fun _ ->
   let to_write =
     match event with
     | Db_cache_types.RefreshRow (_, _) ->

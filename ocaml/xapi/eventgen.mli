@@ -64,7 +64,9 @@ val find_get_record :
     record referred to by [reference] is no longer present in the
     database. *)
 
-val database_callback : update -> Database.t -> unit
+val database_callback :
+  span_parent: Tracing.Span.t option ->
+  update -> Database.t -> unit
 (** [database_call update db] notifies [Xapi_event] (indirectly) of
     transitive events arising from a single logical [update] within the
     database.
