@@ -479,6 +479,7 @@ module Version = struct
       ; ("Lists with negative numbers", [0; -5; 10], [0; -2; -10], -1)
       ; ("Single element lists (equal)", [42], [42], 0)
       ; ("Single element lists (unequal)", [42], [43], -1)
+      ; ("Different number of element in lists", [25; 27], [25; 27; 1], -1)
       ]
     in
     let test_compare (description, list1, list2, expected) =
@@ -495,6 +496,11 @@ module Version = struct
           \        the database"
         , "25.30.0"
         , [25; 30; 0]
+        )
+      ; ( "Dev build version, e.g. xapi build version stored in\n\
+          \        the database"
+        , "25.30.0.6.gb239bd75a"
+        , [25; 30; 0; 6]
         )
       ; ( "Version with a patch identifier e.g. xen versions stored in the\n\
           \        database"

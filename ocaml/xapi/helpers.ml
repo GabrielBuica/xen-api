@@ -867,12 +867,18 @@ let assert_we_are_master ~__context =
       )
 
 (* Host version compare helpers *)
-let compare_int_lists : int list -> int list -> int =
+let rec compare_int_lists : int list -> int list -> int =
  fun a b ->
-  let first_non_zero is =
-    List.fold_left (fun a b -> if a <> 0 then a else b) 0 is
-  in
-  first_non_zero (List.map2 compare a b)
+  match (a, b) with
+  | [], [] ->
+      0
+  | [], _ ->
+      -1
+  | _, [] ->
+      1
+  | x :: xs, y :: ys ->
+      let r = compare x y in
+      if r <> 0 then r else compare_int_lists xs ys
 
 let group_by f list =
   let evaluated_list = List.map (fun x -> (x, f x)) list in
@@ -933,14 +939,14 @@ let versions_string_of : (string * string) list -> string =
 
 let version_numbers_of_string version_string =
   ( match String.split_on_char '-' version_string with
-  | [standard_version; prerelease] ->
-      String.split_on_char '.' standard_version @ [prerelease]
+  | [standard_version; patch] ->
+      String.split_on_char '.' standard_version @ [patch]
   | [standard_version] ->
       String.split_on_char '.' standard_version
   | _ ->
       ["0"; "0"; "0"]
   )
-  |> List.map int_of_string
+  |> List.filter_map int_of_string_opt
 
 let version_of : version_key:string -> (string * string) list -> int list =
  fun ~version_key versions_list ->
