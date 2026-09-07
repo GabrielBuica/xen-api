@@ -105,6 +105,10 @@ module Actions = struct
   module GPU_group = Xapi_gpu_group
   module VGPU = Xapi_vgpu
   module VGPU_type = Xapi_vgpu_type
+
+  (* SCAFFOLD (CP-314160/V-01): the class publishes no messages *)
+  module GPU_partition = struct end
+
   module PVS_site = Xapi_pvs_site
   module PVS_server = Xapi_pvs_server
   module PVS_proxy = Xapi_pvs_proxy

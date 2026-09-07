@@ -9664,6 +9664,10 @@ module PGPU = struct
         ; field ~qualifier:DynamicRO ~ty:(Set (Ref _vgpu))
             ~lifecycle:[(Published, rel_vgpu_tech_preview, "")]
             "resident_VGPUs" "List of VGPUs running on this PGPU"
+          (* SCAFFOLD (CP-314160/V-01) *)
+        ; field ~qualifier:DynamicRO ~ty:(Set (Ref _gpu_partition))
+            ~lifecycle:Datamodel_gpu_partition.lifecycle "partitions"
+            "List of partitions this PGPU is currently carved into"
         ; field ~qualifier:StaticRO ~ty:Int
             ~lifecycle:[(Published, rel_vgpu_tech_preview, "")]
             ~internal_only:true
@@ -9946,6 +9950,17 @@ module VGPU = struct
             ~lifecycle:[(Published, rel_dundee, "")]
             "scheduled_to_be_resident_on"
             "The PGPU on which this VGPU is scheduled to run"
+            ~default_value:(Some (VRef null_ref))
+          (* SCAFFOLD (CP-314160/V-01): the partition-grain pair. Named after
+             the PGPU pair immediately above, per OQ-04. *)
+        ; field ~qualifier:DynamicRO ~ty:(Ref _gpu_partition)
+            ~lifecycle:Datamodel_gpu_partition.lifecycle "resident_on_partition"
+            "The GPU partition on which this VGPU is running"
+            ~default_value:(Some (VRef null_ref))
+        ; field ~qualifier:DynamicRO ~ty:(Ref _gpu_partition)
+            ~lifecycle:Datamodel_gpu_partition.lifecycle
+            "scheduled_to_be_resident_on_partition"
+            "The GPU partition on which this VGPU is scheduled to run"
             ~default_value:(Some (VRef null_ref))
         ; field ~qualifier:DynamicRO
             ~ty:(Map (String, String))
@@ -10643,6 +10658,7 @@ let all_system =
   ; GPU_group.t
   ; VGPU.t
   ; VGPU_type.t
+  ; Datamodel_gpu_partition.t (* SCAFFOLD (CP-314160/V-01) *)
   ; PVS_site.t
   ; PVS_server.t
   ; PVS_proxy.t
@@ -10732,6 +10748,13 @@ let all_relations =
   ; ((_vgpu, "type"), (_vgpu_type, "VGPUs"))
   ; ((_vgpu, "VM"), (_vm, "VGPUs"))
   ; ((_vgpu, "resident_on"), (_pgpu, "resident_VGPUs"))
+  ; (* SCAFFOLD (CP-314160/V-01). The reverse sets are generated from these
+       three rows: V-03's "no code maintains the reverse sets" rests on it. *)
+    ((_gpu_partition, "PGPU"), (_pgpu, "partitions"))
+  ; ((_vgpu, "resident_on_partition"), (_gpu_partition, "resident_VGPUs"))
+  ; ( (_vgpu, "scheduled_to_be_resident_on_partition")
+    , (_gpu_partition, "scheduled_VGPUs")
+    )
   ; ((_pgpu, "supported_VGPU_types"), (_vgpu_type, "supported_on_PGPUs"))
   ; ((_pgpu, "enabled_VGPU_types"), (_vgpu_type, "enabled_on_PGPUs"))
   ; ( (_gpu_group, "supported_VGPU_types")

@@ -29,6 +29,7 @@ type without_secret =
   | `generation
   | `Generic
   | `GPU_group
+  | `GPU_partition  (* SCAFFOLD (CP-314160/V-01) *)
   | `host
   | `Host_driver
   | `Driver_variant

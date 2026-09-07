@@ -6371,6 +6371,9 @@ functor
 
     module VGPU_type = struct end
 
+    (* SCAFFOLD (CP-314160/V-01): the class publishes no messages *)
+    module GPU_partition = struct end
+
     module LVHD = struct end
 
     module PVS_site = struct

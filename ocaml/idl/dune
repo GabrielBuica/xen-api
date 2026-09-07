@@ -8,7 +8,7 @@
     datamodel_diagnostics datamodel_repository datamodel_lifecycle
     datamodel_vtpm datamodel_observer datamodel_vm_group api_version
     datamodel_host_driver datamodel_driver_variant datamodel_caller
-    datamodel_rate_limit
+    datamodel_rate_limit datamodel_gpu_partition
     )
   (libraries
     rpclib.core
