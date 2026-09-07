@@ -104,9 +104,14 @@ let allocate_vgpu_to_gpu ?(dry_run = false) ?(pre_allocate_list = []) ~__context
       if not dry_run then (
         Db.VGPU.set_scheduled_to_be_resident_on ~__context ~self:vgpu.vgpu_ref
           ~value:hd ;
+        (* A VGPU that still holds a partition was suspended while bound to
+           it, and must come back to that one or not at all. *)
+        let choose =
+          Xapi_gpu_partition.chooser_for ~__context ~self:vgpu.vgpu_ref
+        in
         (* Lock-free form: this inherits the caller's lock context, exactly
            as the card-level line above does. See the note on create_vgpus. *)
-        Xapi_gpu_partition.apply_nolock ~__context ~self:vgpu.vgpu_ref
+        Xapi_gpu_partition.apply_nolock ~__context ~self:vgpu.vgpu_ref ~choose
           Gpu.Gpu_partition_lifecycle.Reserve
       ) ;
       (vgpu.vgpu_ref, hd) :: pre_allocate_list

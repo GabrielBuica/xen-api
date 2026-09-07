@@ -451,6 +451,11 @@ let _ =
     ~doc:"The VGPU configuration does not support suspension." () ;
   error Api_errors.vgpu_guest_driver_limit ["reason"; "vm"; "host"]
     ~doc:"The guest driver does not support VGPU migration." () ;
+  error Api_errors.gpu_partition_in_use ["partition"; "vm"]
+    ~doc:
+      "The GPU partition this VM is bound to is occupied by another VM. The \
+       partition and its current occupant are both reported."
+    () ;
   error Api_errors.nvidia_tools_error ["host"]
     ~doc:
       "Nvidia tools error. Please ensure that the latest Nvidia tools are \

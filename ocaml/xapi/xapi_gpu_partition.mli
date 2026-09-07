@@ -34,6 +34,22 @@ val choose_none : chooser
     identical to a build without partitions. A placement policy supplies a
     real one. *)
 
+val constrained : partition:API.ref_GPU_partition -> chooser
+(** [constrained ~partition] picks that partition and no other. If another
+    VGPU is resident on it, raises [GPU_PARTITION_IN_USE] naming the
+    partition and the VM now occupying it.
+
+    This is the "this one or fail" a resuming VM needs: it kept its partition
+    across the suspend, and coming back on a different one is coming back on
+    different hardware. It is a distinct error from a general admission
+    failure because the operator's remedy differs: freeing that one partition,
+    rather than finding room anywhere on the host. *)
+
+val chooser_for : __context:Context.t -> self:API.ref_VGPU -> chooser
+(** The chooser appropriate to a VGPU's current state: {!constrained} if it
+    still holds a partition — which only a VM suspended while bound to one
+    does — and {!choose_none} otherwise. *)
+
 val initial_refs : API.ref_GPU_partition * API.ref_GPU_partition
 (** The (resident, scheduled) pair a freshly created VGPU starts with, read
     out of the outcome table's [Create] row. A VGPU cannot be born holding a

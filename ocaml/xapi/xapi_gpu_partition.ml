@@ -22,6 +22,34 @@ type chooser =
 
 let choose_none : chooser = fun ~__context:_ ~self:_ -> None
 
+let constrained ~partition : chooser =
+ fun ~__context ~self ->
+  let occupants =
+    Db.GPU_partition.get_resident_VGPUs ~__context ~self:partition
+    |> List.filter (fun vgpu -> vgpu <> self)
+  in
+  match occupants with
+  | [] ->
+      Some partition
+  | occupant :: _ ->
+      let occupying_vm = Db.VGPU.get_VM ~__context ~self:occupant in
+      error "%s: VGPU %s is bound to partition %s, occupied by VM %s"
+        __FUNCTION__ (Ref.string_of self) (Ref.string_of partition)
+        (Ref.string_of occupying_vm) ;
+      raise
+        (Api_errors.Server_error
+           ( Api_errors.gpu_partition_in_use
+           , [Ref.string_of partition; Ref.string_of occupying_vm]
+           )
+        )
+
+let chooser_for ~__context ~self =
+  match Db.VGPU.get_resident_on_partition ~__context ~self with
+  | partition when partition <> Ref.null ->
+      constrained ~partition
+  | _ ->
+      choose_none
+
 let string_of_action = Lifecycle.string_of_ref_action Ref.string_of
 
 let ref_of_action = function

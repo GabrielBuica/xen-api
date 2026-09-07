@@ -916,11 +916,22 @@ let force_state_reset_keep_current_operations ~__context ~self ~value:state =
        from starting on an outdated host, so it will necessarily start on an up-to-date host *)
     remove_pending_guidance ~__context ~self ~value:`restart_vm
   ) ;
-  (* Do not clear resident_on for VM and VGPU in a checkpoint operation *)
-  if
-    state = `Halted
-    || (state = `Suspended && not (checkpoint_in_progress ~__context ~vm:self))
-  then (
+  (* Do not clear resident_on for VM and VGPU in a checkpoint operation.
+
+     Halting and suspending share every card-level line below, but differ at
+     partition grain: a halted VM gives its partition up, a suspended one
+     keeps it. So each names its own row in the outcome table. *)
+  let is_halting = state = `Halted in
+  let is_suspending =
+    state = `Suspended && not (checkpoint_in_progress ~__context ~vm:self)
+  in
+  if is_halting || is_suspending then (
+    let partition_transition =
+      if is_halting then
+        Gpu.Gpu_partition_lifecycle.Release_halted
+      else
+        Gpu.Gpu_partition_lifecycle.Release_suspended
+    in
     Db.VM.set_resident_on ~__context ~self ~value:Ref.null ;
     (* make sure we aren't reserving any memory for this VM *)
     Db.VM.set_scheduled_to_be_resident_on ~__context ~self ~value:Ref.null ;
@@ -932,12 +943,7 @@ let force_state_reset_keep_current_operations ~__context ~self ~value:state =
         Db.VGPU.set_scheduled_to_be_resident_on ~__context ~self:vgpu
           ~value:Ref.null ;
         Db.VGPU.set_PCI ~__context ~self:vgpu ~value:Ref.null ;
-        (* Both Halted and Suspended reach here today, so both give the
-           partition up. Splitting them, so that a suspended VM keeps its
-           partition, is the single deliberate divergence from card-level
-           behaviour, and is made separately. *)
-        Xapi_gpu_partition.apply ~__context ~self:vgpu
-          Gpu.Gpu_partition_lifecycle.Release_halted
+        Xapi_gpu_partition.apply ~__context ~self:vgpu partition_transition
     ) ;
     Db.VM.get_attached_PCIs ~__context ~self
     |> List.iter (fun pci ->
