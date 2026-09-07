@@ -1531,7 +1531,9 @@ functor
         Db.VM.get_VGPUs ~__context ~self:vm
         |> List.iter (fun vgpu ->
             Db.VGPU.set_scheduled_to_be_resident_on ~__context ~self:vgpu
-              ~value:Ref.null
+              ~value:Ref.null ;
+            Xapi_gpu_partition.apply ~__context ~self:vgpu
+              Gpu.Gpu_partition_lifecycle.Abort
         ) ;
         (* pcis *)
         Db.PCI.get_refs_where ~__context
@@ -6296,7 +6298,11 @@ functor
         Helpers.with_global_lock (fun () ->
             Db.VGPU.set_resident_on ~__context ~self ~value ;
             Db.VGPU.set_scheduled_to_be_resident_on ~__context ~self
-              ~value:Ref.null
+              ~value:Ref.null ;
+            (* The one site already inside the global lock, so the lock-free
+               form: with_global_lock is a plain mutex, not re-entrant. *)
+            Xapi_gpu_partition.apply_locked ~__context ~self
+              Gpu.Gpu_partition_lifecycle.Confirm
         )
     end
 

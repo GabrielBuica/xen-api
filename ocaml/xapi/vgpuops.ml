@@ -101,9 +101,14 @@ let allocate_vgpu_to_gpu ?(dry_run = false) ?(pre_allocate_list = []) ~__context
   | [] ->
       fail_creation vm vgpu
   | hd :: _ ->
-      if not dry_run then
+      if not dry_run then (
         Db.VGPU.set_scheduled_to_be_resident_on ~__context ~self:vgpu.vgpu_ref
           ~value:hd ;
+        (* Partition grain. The card-level line above is untouched. With the
+           default chooser this writes null, i.e. nothing changes. *)
+        Xapi_gpu_partition.apply ~__context ~self:vgpu.vgpu_ref
+          Gpu.Gpu_partition_lifecycle.Reserve
+      ) ;
       (vgpu.vgpu_ref, hd) :: pre_allocate_list
 
 (* Take a PCI device and assign it to the VM *)
