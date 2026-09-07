@@ -140,14 +140,26 @@ let destroy ~__context ~self =
 
 let atomic_set_resident_on ~__context ~self:_ ~value:_ = assert false
 
-let copy ~__context ~vm vgpu =
+let copy ~__context ?(preserve_compatibility_metadata = true) ~vm vgpu =
   let all = Db.VGPU.get_record ~__context ~self:vgpu in
+  (* BUG-36. compatibility_metadata answers "can this vGPU migrate off the
+     card it is on", and is written from the pGPU the vGPU is resident on
+     (xapi_gpumon.ml:285). A clone has never been resident anywhere, so
+     carrying it forward hands the new VM an assertion about hardware it has
+     never touched. A snapshot or checkpoint is the opposite case: it must
+     keep it, because resuming the memory image is exactly the migration the
+     metadata describes. *)
+  let compatibility_metadata =
+    if preserve_compatibility_metadata then
+      all.API.vGPU_compatibility_metadata
+    else
+      []
+  in
   let vgpu =
     create' ~__context ~device:all.API.vGPU_device
       ~gPU_group:all.API.vGPU_GPU_group ~vM:vm
       ~other_config:all.API.vGPU_other_config ~_type:all.API.vGPU_type
-      ~powerstate_check:false
-      ~compatibility_metadata:all.API.vGPU_compatibility_metadata
+      ~powerstate_check:false ~compatibility_metadata
   in
   if all.API.vGPU_currently_attached then
     Db.VGPU.set_currently_attached ~__context ~self:vgpu ~value:true ;
