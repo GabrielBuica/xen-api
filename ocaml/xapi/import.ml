@@ -306,17 +306,32 @@ let assert_can_live_import_vgpu ~__context vgpu_record =
             )
         )
   in
-  let capacity_exists =
-    List.exists
-      (fun pgpu ->
-        try
-          Xapi_pgpu_helpers.assert_capacity_exists_for_VGPU_type ~__context
-            ~self:pgpu ~vgpu_type:vgpu_record.API.vGPU_type ;
-          true
-        with _ -> false
-      )
-      local_pgpus
+  (* Only a refusal means "this PGPU has no room". Anything else that goes
+     wrong while deciding, such as a database error or a cancelled task, is
+     re-raised rather than reported as a missing GPU. *)
+  let has_capacity pgpu =
+    match
+      Xapi_pgpu_helpers.get_remaining_capacity_internal ~__context ~self:pgpu
+        ~vgpu_type:vgpu_record.API.vGPU_type ~pre_allocate_list:[]
+    with
+    | Ok _ ->
+        true
+    | Error
+        ( Vgpu_refusal.Type_not_supported _
+        | Type_not_enabled _
+        | Type_incompatible_with_running _
+        | Insufficient_capacity _
+        | Group_contains_no_pgpus _ ) ->
+        false
+    | Error (Unexpected Division_by_zero) ->
+        (* A VGPU type created by an import has size 0 until its
+           definition is read from the driver; the capacity sum divides by
+           it. Keep treating that as no room for now. *)
+        false
+    | Error (Unexpected e) ->
+        raise e
   in
+  let capacity_exists = List.exists has_capacity local_pgpus in
   if not capacity_exists then
     raise
       Api_errors.(

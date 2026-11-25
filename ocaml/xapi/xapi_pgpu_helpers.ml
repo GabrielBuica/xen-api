@@ -134,8 +134,9 @@ let assert_no_resident_VGPUs_of_type ~__context ~self ~vgpu_type =
            (Api_errors.pgpu_in_use_by_vm, List.map Ref.string_of vms)
         )
 
-(* The try covers the database reads and the division too: callers treat any
-   failure here as a refusal, so it must not be narrowed. *)
+(* The try covers the database reads and the division too. A failure that is
+   not a refusal comes back as Unexpected, and each caller decides what to do
+   with it: Import re-raises everything except Division_by_zero. *)
 let get_remaining_capacity_internal ~__context ~self ~vgpu_type
     ~pre_allocate_list =
   try

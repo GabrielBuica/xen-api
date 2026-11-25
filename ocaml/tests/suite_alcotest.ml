@@ -44,6 +44,7 @@ let () =
      ; ("Test_xapi_xenops", Test_xapi_xenops.test)
      ; ("Test_network_event_loop", Test_network_event_loop.test)
      ; ("Test_vgpu_type", Test_vgpu_type.test)
+     ; ("Test_import_vgpu", Test_import_vgpu.test)
      ; ("Test_gpu_partition_wiring", Test_gpu_partition_wiring.test)
      ; ("Test_vgpu_copy", Test_vgpu_copy.test)
      ; ("Test_vgpu_clone_copy_revert", Test_vgpu_clone_copy_revert.test)
