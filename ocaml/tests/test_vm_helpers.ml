@@ -167,6 +167,24 @@ let test_gpus_available_fails_type_conflict () =
         )
   )
 
+(* The only PGPU supports a type whose size is still 0, as an import leaves
+   it. Starting a VM with it names the type's definition as unavailable,
+   rather than asking for a VGPU on a PGPU with nothing on it. *)
+let test_gpus_available_fails_unread_type () =
+  on_pool_of_k1s (fun __context _ h' _ ->
+      let group = the "GPU group" (Db.GPU_group.get_all ~__context) in
+      let pgpu = the "PGPU on h'" (Db.Host.get_PGPUs ~__context ~self:h') in
+      let unread =
+        Xapi_vgpu_type.find_or_create ~__context VGPU_T.unread_type
+      in
+      Db.PGPU.add_supported_VGPU_types ~__context ~self:pgpu ~value:unread ;
+      Db.PGPU.add_enabled_VGPU_types ~__context ~self:pgpu ~value:unread ;
+      let vm = make_vm_with_vgpu_in_group ~__context VGPU_T.unread_type group in
+      assert_raises_api_error Api_errors.vgpu_type_definition_unavailable
+        (fun () -> assert_gpus_available ~__context ~self:vm ~host:h'
+      )
+  )
+
 (* One PGPU full, the other running another type: the type conflict wins,
    whichever PGPU is which. *)
 let test_gpus_available_full_and_type_conflict () =
@@ -1175,6 +1193,10 @@ let test =
   ; ( "test_gpus_available_fails_type_conflict"
     , `Quick
     , test_gpus_available_fails_type_conflict
+    )
+  ; ( "test_gpus_available_fails_unread_type"
+    , `Quick
+    , test_gpus_available_fails_unread_type
     )
   ; ( "test_gpus_available_full_and_type_conflict"
     , `Quick

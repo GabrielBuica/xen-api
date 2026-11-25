@@ -45,7 +45,8 @@ let fail_creation ?(refusals = []) vm vgpu =
   | Some
       ( ( Vgpu_refusal.Type_incompatible_with_running _
         | Vgpu_refusal.Type_not_enabled _
-        | Vgpu_refusal.Type_not_supported _ ) as r
+        | Vgpu_refusal.Type_not_supported _
+        | Vgpu_refusal.Type_definition_unavailable _ ) as r
       ) ->
       raise (Vgpu_refusal.to_api_error r)
   | Some

@@ -134,13 +134,30 @@ let assert_no_resident_VGPUs_of_type ~__context ~self ~vgpu_type =
            (Api_errors.pgpu_in_use_by_vm, List.map Ref.string_of vms)
         )
 
-(* The try covers the database reads and the division too. A failure that is
-   not a refusal comes back as Unexpected, and each caller decides what to do
-   with it: Import re-raises everything except Division_by_zero. *)
+(* An import creates a VGPU type it has not seen with size 0, to be filled in
+   when the driver's definition of the type is read. Until then there is
+   nothing to divide the PGPU's free size by. A type passed through whole has
+   size 0 by design and is not divided by. *)
+let check_VGPU_type_defined ~__context ~vgpu_type =
+  if
+    Xapi_vgpu_type.requires_passthrough ~__context ~self:vgpu_type <> Some `PF
+    && Db.VGPU_type.get_size ~__context ~self:vgpu_type = 0L
+  then
+    Error
+      (Vgpu_refusal.Type_definition_unavailable
+         {vgpu_type= Ref.string_of vgpu_type}
+      )
+  else
+    Ok ()
+
+(* The try covers the database reads and the division too. A failure that is not a refusal comes
+   back as Unexpected, and each caller decides what to do with it: Import
+   re-raises it. *)
 let get_remaining_capacity_internal ~__context ~self ~vgpu_type
     ~pre_allocate_list =
   try
     let* () = check_VGPU_type_allowed ~__context ~self ~vgpu_type in
+    let* () = check_VGPU_type_defined ~__context ~vgpu_type in
     let convert_capacity capacity =
       if capacity > 0L then
         Ok capacity

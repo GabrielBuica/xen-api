@@ -31,6 +31,10 @@ type t =
           its [compatible_types_on_pgpu]. [running] is the allocated types,
           deduplicated and joined with ";", as the existing error carries
           them. *)
+  | Type_definition_unavailable of {vgpu_type: string}
+      (** the type's size is 0: it was created by an import, and its
+          definition has not yet been read from the driver on this host. No
+          capacity can be computed for it. *)
   | Insufficient_capacity of {pgpu: string; vgpu_type: string}
       (** the type's size does not fit in what is left of the PGPU *)
   | Group_contains_no_pgpus of {gpu_group: string}
@@ -38,7 +42,7 @@ type t =
           per-PGPU refusal to report instead *)
   | Unexpected of exn
       (** any other exception raised while deciding, such as a database
-          failure or a division by a size-[0L] type *)
+          failure *)
 
 val to_api_error : t -> exn
 (** The API error a refusal is reported as. [to_api_error (Unexpected e)] is
@@ -58,6 +62,10 @@ val rank : t -> int
       running another one; stop or move those VGPUs.
     - [Type_not_enabled]: the PGPU supports the type; enable it.
     - [Type_not_supported]: the PGPU cannot host the type at all.
+    - [Type_definition_unavailable]: the type's definition has not been read
+      from the driver, so no PGPU can be judged for it. The operator can act
+      on it, so it ranks above "full", but it says less about the PGPU than
+      a type the PGPU explicitly does not support.
     - [Insufficient_capacity]: the PGPU is full. Least specific: it is what
       the generic "no PGPU in the group could host it" error already says.
     - [Group_contains_no_pgpus]: not a PGPU's reason; never competes with

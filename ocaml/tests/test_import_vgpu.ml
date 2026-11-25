@@ -16,34 +16,6 @@
 
 open Test_vgpu_common
 
-(* A VGPU type as an import creates it before the driver's definition has
-   been read: size 0. A distinct identifier keeps it from updating k100. *)
-let unread_type =
-  {
-    k100 with
-    Xapi_vgpu_type.model_name= "GRID K100 imported"
-  ; size= 0L
-  ; internal_config= []
-  ; identifier=
-      Xapi_vgpu_type.Identifier.(
-        Nvidia
-          {
-            pdev_id= 0x0ff2
-          ; psubdev_id= None
-          ; vdev_id= 0x0fff
-          ; vsubdev_id= 0x101e
-          ; sriov= false
-          ; vclass= "NVS"
-          }
-      )
-  }
-
-let k1_with_unread_type =
-  {
-    default_k1 with
-    supported_VGPU_types= unread_type :: default_k1.supported_VGPU_types
-  }
-
 (* A VGPU in [group] of [vgpu_type], on [pgpus] all on the local host, as
    the import sees it. *)
 let setup ~pgpus vgpu_type =
@@ -85,12 +57,22 @@ let test_refusal_moves_on () =
   let __context, _, vgpu = setup ~pgpus:[full; default_k1] k100 in
   Import.assert_can_live_import_vgpu ~__context vgpu
 
-(* Unchanged for now: a type whose size is still 0 reads as no room. *)
-let test_unread_type_reads_as_no_room () =
+(* A type whose size is still 0 fits no PGPU, and the import says why
+   instead of asking for a GPU on a host with an empty card. *)
+let test_unread_type_is_named () =
   let __context, _, vgpu = setup ~pgpus:[k1_with_unread_type] unread_type in
-  assert_vm_requires_gpu (fun () ->
-      Import.assert_can_live_import_vgpu ~__context vgpu
-  )
+  match Import.assert_can_live_import_vgpu ~__context vgpu with
+  | () ->
+      Alcotest.fail "expected VGPU_TYPE_DEFINITION_UNAVAILABLE, but accepted"
+  | exception Api_errors.Server_error (code, params) ->
+      Alcotest.(check string)
+        "error code" Api_errors.vgpu_type_definition_unavailable code ;
+      Alcotest.(check (list string))
+        "parameters"
+        [Ref.string_of vgpu.API.vGPU_type]
+        params
+  | exception Division_by_zero ->
+      Alcotest.fail "the size-0 type was divided by"
 
 (* A database failure while deciding is not a refusal. Before the catch-all
    was narrowed this came back as VM_REQUIRES_GPU on an empty card. *)
@@ -120,10 +102,7 @@ let test =
     ("Room on an empty PGPU", `Quick, test_room_on_empty_pgpu)
   ; ("A full PGPU is refused", `Quick, test_full_pgpu_refused)
   ; ("A refusal moves on to the next PGPU", `Quick, test_refusal_moves_on)
-  ; ( "A size-0 type still reads as no room"
-    , `Quick
-    , test_unread_type_reads_as_no_room
-    )
+  ; ("A size-0 type is refused by name", `Quick, test_unread_type_is_named)
   ; ( "A database failure is not reported as no GPU"
     , `Quick
     , test_database_failure_propagates

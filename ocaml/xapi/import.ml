@@ -308,7 +308,8 @@ let assert_can_live_import_vgpu ~__context vgpu_record =
   in
   (* Only a refusal means "this PGPU has no room". Anything else that goes
      wrong while deciding, such as a database error or a cancelled task, is
-     re-raised rather than reported as a missing GPU. *)
+     re-raised rather than reported as a missing GPU. A type whose definition
+     has not been read fits no PGPU, so that is reported as itself. *)
   let has_capacity pgpu =
     match
       Xapi_pgpu_helpers.get_remaining_capacity_internal ~__context ~self:pgpu
@@ -323,11 +324,8 @@ let assert_can_live_import_vgpu ~__context vgpu_record =
         | Insufficient_capacity _
         | Group_contains_no_pgpus _ ) ->
         false
-    | Error (Unexpected Division_by_zero) ->
-        (* A VGPU type created by an import has size 0 until its
-           definition is read from the driver; the capacity sum divides by
-           it. Keep treating that as no room for now. *)
-        false
+    | Error (Type_definition_unavailable _ as r) ->
+        raise (Vgpu_refusal.to_api_error r)
     | Error (Unexpected e) ->
         raise e
   in

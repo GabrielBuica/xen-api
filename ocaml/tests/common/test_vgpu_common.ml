@@ -289,3 +289,31 @@ let make_pgpu ~__context ?address ?(host = Ref.null) ?(gPU_group = Ref.null)
     )
     pgpu.scheduled_VGPU_types ;
   pgpu_ref
+
+(* A VGPU type as an import creates it before the driver's definition has
+   been read: size 0. A distinct identifier keeps it from updating k100. *)
+let unread_type =
+  {
+    k100 with
+    model_name= "GRID K100 imported"
+  ; size= 0L
+  ; internal_config= []
+  ; identifier=
+      Identifier.(
+        Nvidia
+          {
+            pdev_id= 0x0ff2
+          ; psubdev_id= None
+          ; vdev_id= 0x0fff
+          ; vsubdev_id= 0x101e
+          ; sriov= false
+          ; vclass= "NVS"
+          }
+      )
+  }
+
+let k1_with_unread_type =
+  {
+    default_k1 with
+    supported_VGPU_types= unread_type :: default_k1.supported_VGPU_types
+  }

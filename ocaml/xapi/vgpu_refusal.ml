@@ -24,6 +24,7 @@ type t =
       ; vgpu_type: string
       ; running: string
     }
+  | Type_definition_unavailable of {vgpu_type: string}
   | Insufficient_capacity of {pgpu: string; vgpu_type: string}
   | Group_contains_no_pgpus of {gpu_group: string}
   | Unexpected of exn
@@ -42,6 +43,9 @@ let to_api_error = function
         ( Api_errors.vgpu_type_not_compatible_with_running_type
         , [pgpu; vgpu_type; running]
         )
+  | Type_definition_unavailable {vgpu_type} ->
+      Api_errors.Server_error
+        (Api_errors.vgpu_type_definition_unavailable, [vgpu_type])
   | Insufficient_capacity {pgpu; vgpu_type} ->
       Api_errors.Server_error
         (Api_errors.pgpu_insufficient_capacity_for_vgpu, [pgpu; vgpu_type])
@@ -65,6 +69,11 @@ let describe = function
         "type %s is not compatible with the types already allocated on PGPU %s \
          (allocated: %s)"
         vgpu_type pgpu running
+  | Type_definition_unavailable {vgpu_type} ->
+      Printf.sprintf
+        "the definition of type %s has not been read from the driver, so its \
+         size is not known"
+        vgpu_type
   | Insufficient_capacity {pgpu; vgpu_type} ->
       Printf.sprintf "PGPU %s has insufficient capacity for a VGPU of type %s"
         pgpu vgpu_type
@@ -84,18 +93,15 @@ let to_string r =
 (* The order used to be the reverse for the type reasons: "insufficient
    capacity" scored highest, so a PGPU that was merely full hid another
    PGPU's type conflict, and the operator was sent to look for capacity.
-   The rationale for each slot is in the .mli.
-
-   A refusal for a type whose definition is not available belongs
-   between Type_not_supported and Insufficient_capacity: the operator can fix
-   it by supplying or importing the manifest, so it beats "full", but it says
-   less about the PGPU than a type the PGPU explicitly does not support. *)
+   The rationale for each slot is in the .mli. *)
 let rank = function
   | Type_incompatible_with_running _ ->
-      5
+      6
   | Type_not_enabled _ ->
-      4
+      5
   | Type_not_supported _ ->
+      4
+  | Type_definition_unavailable _ ->
       3
   | Insufficient_capacity _ ->
       2

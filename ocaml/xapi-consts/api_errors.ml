@@ -647,6 +647,9 @@ let vgpu_type_not_supported = add_error "VGPU_TYPE_NOT_SUPPORTED"
 
 let vgpu_type_no_longer_supported = add_error "VGPU_TYPE_NO_LONGER_SUPPORTED"
 
+let vgpu_type_definition_unavailable =
+  add_error "VGPU_TYPE_DEFINITION_UNAVAILABLE"
+
 let vgpu_type_not_compatible_with_running_type =
   add_error "VGPU_TYPE_NOT_COMPATIBLE_WITH_RUNNING_TYPE"
 

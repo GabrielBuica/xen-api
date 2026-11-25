@@ -115,5 +115,57 @@ module GetRemainingCapacity = Generic.MakeStateful (struct
       ]
 end)
 
+(* The refusal get_remaining_capacity_internal gives for [vgpu_type] on a
+   single PGPU in state [pgpu]. *)
+let refusal_for pgpu vgpu_type =
+  let __context = Test_common.make_test_database () in
+  let pgpu_ref = make_pgpu ~__context pgpu in
+  let type_ref = find_or_create ~__context vgpu_type in
+  ( type_ref
+  , Xapi_pgpu_helpers.get_remaining_capacity_internal ~__context ~self:pgpu_ref
+      ~vgpu_type:type_ref ~pre_allocate_list:[]
+  )
+
+(* A type whose size is still 0 is refused by name before anything divides
+   by it, not as a full PGPU and not as an internal failure. *)
+let test_unread_type_refused () =
+  match refusal_for k1_with_unread_type unread_type with
+  | type_ref, Error (Vgpu_refusal.Type_definition_unavailable {vgpu_type}) ->
+      Alcotest.(check string) "type" (Ref.string_of type_ref) vgpu_type
+  | _, r ->
+      Alcotest.failf "expected Type_definition_unavailable, got %s"
+        ( match r with
+        | Ok n ->
+            Printf.sprintf "capacity %Ld" n
+        | Error r ->
+            Vgpu_refusal.to_string r
+        )
+
+(* The type checks come first: a PGPU that does not support the type says
+   so, whatever the type's size. *)
+let test_unsupported_unread_type () =
+  match refusal_for default_k1 unread_type with
+  | _, Error (Vgpu_refusal.Type_not_supported _) ->
+      ()
+  | _, r ->
+      Alcotest.failf "expected Type_not_supported, got %s"
+        ( match r with
+        | Ok n ->
+            Printf.sprintf "capacity %Ld" n
+        | Error r ->
+            Vgpu_refusal.to_string r
+        )
+
 let tests =
-  [("test_pgpu_helpers_get_remaining_capacity", GetRemainingCapacity.tests)]
+  [
+    ("test_pgpu_helpers_get_remaining_capacity", GetRemainingCapacity.tests)
+  ; ( "test_pgpu_helpers_type_definition_unavailable"
+    , [
+        ("A size-0 type is refused by name", `Quick, test_unread_type_refused)
+      ; ( "An unsupported size-0 type is refused as unsupported"
+        , `Quick
+        , test_unsupported_unread_type
+        )
+      ]
+    )
+  ]

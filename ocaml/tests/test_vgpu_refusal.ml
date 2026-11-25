@@ -17,6 +17,8 @@ let _every_constructor_is_accounted_for (r : t) =
       ()
   | Type_incompatible_with_running _ ->
       ()
+  | Type_definition_unavailable _ ->
+      ()
   | Insufficient_capacity _ ->
       ()
   | Group_contains_no_pgpus _ ->
@@ -61,6 +63,11 @@ let golden =
     , "VGPU_TYPE_NOT_COMPATIBLE_WITH_RUNNING_TYPE"
     , [pgpu; vgpu_type; other_type]
     )
+  ; ( "Type_definition_unavailable"
+    , Type_definition_unavailable {vgpu_type}
+    , "VGPU_TYPE_DEFINITION_UNAVAILABLE"
+    , [vgpu_type]
+    )
   ; ( "Insufficient_capacity"
     , Insufficient_capacity {pgpu; vgpu_type}
     , "PGPU_INSUFFICIENT_CAPACITY_FOR_VGPU"
@@ -101,12 +108,14 @@ let expected_position = function
       1
   | Type_not_supported _ ->
       2
-  | Insufficient_capacity _ ->
+  | Type_definition_unavailable _ ->
       3
-  | Group_contains_no_pgpus _ ->
+  | Insufficient_capacity _ ->
       4
-  | Unexpected _ ->
+  | Group_contains_no_pgpus _ ->
       5
+  | Unexpected _ ->
+      6
 
 (* One reason of each kind, most useful first. *)
 let one_of_each =
@@ -118,6 +127,7 @@ let one_of_each =
   ; ( "Type_not_supported"
     , Type_not_supported {vgpu_type; supported= [other_type]}
     )
+  ; ("Type_definition_unavailable", Type_definition_unavailable {vgpu_type})
   ; ("Insufficient_capacity", Insufficient_capacity {pgpu; vgpu_type})
   ; ("Group_contains_no_pgpus", Group_contains_no_pgpus {gpu_group})
   ; ("Unexpected", Unexpected Probe)
@@ -315,11 +325,13 @@ let () =
       (List.length golden) (List.length declared) ;
     exit 2
   ) ;
-  if List.length checks < 95 then (
+  let floor = 115 in
+  let ran = List.length checks in
+  if ran < floor then (
     Printf.eprintf
-      "VACUOUS: ran %d checks, expected at least 95 -- this verified less than \
+      "VACUOUS: ran %d checks, expected at least %d -- this verified less than \
        it should have\n"
-      (List.length checks) ;
+      ran floor ;
     exit 2
   ) ;
   exit (match failures with [] -> 0 | _ -> 1)

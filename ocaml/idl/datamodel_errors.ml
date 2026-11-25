@@ -434,6 +434,13 @@ let _ =
     ~doc:"VGPU type is not one of the PGPU's supported types." () ;
   error Api_errors.vgpu_type_no_longer_supported ["type"]
     ~doc:"VGPU type is no longer supported" () ;
+  error Api_errors.vgpu_type_definition_unavailable ["type"]
+    ~doc:
+      "The VGPU type's definition has not been read from the graphics driver \
+       on this host yet, so its size is not known. This is not a capacity \
+       problem: the definition is read when the toolstack starts on a host \
+       whose driver provides the type."
+    () ;
   error Api_errors.vgpu_type_not_compatible_with_running_type
     ["pgpu"; "type"; "running_type"]
     ~doc:
