@@ -190,12 +190,16 @@ let get_remaining_capacity_internal ~__context ~self ~vgpu_type
         (Int64.div (Int64.sub pgpu_size utilisation) new_vgpu_size)
   with e -> Error (Vgpu_refusal.Unexpected e)
 
+(* A refusal counts as no capacity, but is logged: the reason is otherwise
+   lost, and the log is where support looks for it. *)
 let get_remaining_capacity ~__context ~self ~vgpu_type ~pre_allocate_list =
   match
     get_remaining_capacity_internal ~__context ~self ~vgpu_type
       ~pre_allocate_list
   with
-  | Error _ ->
+  | Error r ->
+      debug "PGPU %s has no capacity for VGPU type %s: %s" (Ref.string_of self)
+        (Ref.string_of vgpu_type) (Vgpu_refusal.to_string r) ;
       0L
   | Ok capacity ->
       capacity

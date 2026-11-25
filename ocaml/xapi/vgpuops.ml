@@ -35,26 +35,44 @@ let vgpu_of_ref ~__context vgpu =
 let vgpus_of_vm ~__context vm_r =
   List.map (vgpu_of_ref ~__context) vm_r.API.vM_VGPUs
 
-let fail_creation vm vgpu =
-  match vgpu.requires_passthrough with
-  | None | Some `VF ->
-      raise
-        (Api_errors.Server_error
-           ( Api_errors.vm_requires_vgpu
-           , [
-               Ref.string_of vm
-             ; Ref.string_of vgpu.gpu_group_ref
-             ; Ref.string_of vgpu.type_ref
-             ]
-           )
-        )
-  | Some `PF ->
-      raise
-        (Api_errors.Server_error
-           ( Api_errors.vm_requires_gpu
-           , [Ref.string_of vm; Ref.string_of vgpu.gpu_group_ref]
-           )
-        )
+(* [refusals] are the reasons the candidate PGPUs gave. When the best of them
+   says more than "no PGPU could host it", that is the error raised, so that
+   the operator is told about a type conflict rather than sent to look for
+   capacity. A full PGPU, or an internal failure, is what the generic errors
+   already say, and they are kept for those. *)
+let fail_creation ?(refusals = []) vm vgpu =
+  match Vgpu_refusal.best_refusal refusals with
+  | Some
+      ( ( Vgpu_refusal.Type_incompatible_with_running _
+        | Vgpu_refusal.Type_not_enabled _
+        | Vgpu_refusal.Type_not_supported _ ) as r
+      ) ->
+      raise (Vgpu_refusal.to_api_error r)
+  | Some
+      ( Vgpu_refusal.Insufficient_capacity _
+      | Vgpu_refusal.Group_contains_no_pgpus _
+      | Vgpu_refusal.Unexpected _ )
+  | None -> (
+    match vgpu.requires_passthrough with
+    | None | Some `VF ->
+        raise
+          (Api_errors.Server_error
+             ( Api_errors.vm_requires_vgpu
+             , [
+                 Ref.string_of vm
+               ; Ref.string_of vgpu.gpu_group_ref
+               ; Ref.string_of vgpu.type_ref
+               ]
+             )
+          )
+    | Some `PF ->
+        raise
+          (Api_errors.Server_error
+             ( Api_errors.vm_requires_gpu
+             , [Ref.string_of vm; Ref.string_of vgpu.gpu_group_ref]
+             )
+          )
+  )
 
 let allocate_vgpu_to_gpu ?(dry_run = false) ?(pre_allocate_list = []) ~__context
     vm host vgpu =
@@ -67,20 +85,31 @@ let allocate_vgpu_to_gpu ?(dry_run = false) ?(pre_allocate_list = []) ~__context
   let vgpu_type = Db.VGPU.get_type ~__context ~self:vgpu.vgpu_ref in
   (* Make a asso list as follows
    * [(p1,capacity1);(p2,capacity2)...] *)
-  let pgpu_capacity_assoc =
+  let pgpu_capacity_assoc, refusals =
     Listext.intersect compatible_pgpus available_pgpus
     |> List.filter (fun pgpu ->
         Xapi_gpumon.Nvidia.vgpu_pgpu_are_compatible ~__context ~pgpu
           ~vgpu:vgpu.vgpu_ref
     )
-    (* Filter all compatible pGPUs *)
-    |> List.map (fun self ->
-        ( self
-        , Xapi_pgpu_helpers.get_remaining_capacity ~__context ~pre_allocate_list
-            ~self ~vgpu_type
-        )
+    (* Keep the pGPUs with capacity, and the reason each of the others gave *)
+    |> List.partition_map (fun self ->
+        match
+          Xapi_pgpu_helpers.get_remaining_capacity_internal ~__context
+            ~pre_allocate_list ~self ~vgpu_type
+        with
+        | Ok capacity when capacity > 0L ->
+            Either.Left (self, capacity)
+        | Ok _ ->
+            Either.Right None
+        | Error r ->
+            debug "VM %s: PGPU %s cannot host VGPU %s of type %s: %s"
+              (Ref.string_of vm) (Ref.string_of self)
+              (Ref.string_of vgpu.vgpu_ref)
+              (Ref.string_of vgpu_type) (Vgpu_refusal.to_string r) ;
+            Either.Right (Some r)
     )
-    |> List.filter (fun (_, capacity) -> capacity > 0L)
+    |> fun (with_capacity, refusals) ->
+    (with_capacity, List.filter_map Fun.id refusals)
   in
   (* Sort the pgpus in lists of equal optimality for vGPU placement based on
    * the GPU groups allocation algorithm *)
@@ -99,7 +128,7 @@ let allocate_vgpu_to_gpu ?(dry_run = false) ?(pre_allocate_list = []) ~__context
     (List.map (fun (pgpu, _) -> pgpu) pgpu_capacity_assoc)
   |> function
   | [] ->
-      fail_creation vm vgpu
+      fail_creation ~refusals vm vgpu
   | hd :: _ ->
       if not dry_run then (
         Db.VGPU.set_scheduled_to_be_resident_on ~__context ~self:vgpu.vgpu_ref

@@ -85,12 +85,14 @@ let test_gpus_available_fails_disabled_type () =
         (fun p -> Db.PGPU.set_enabled_VGPU_types ~__context ~self:p ~value:[])
         pgpus ;
       let vm = make_vm_with_vgpu_in_group ~__context VGPU_T.k100 group in
-      assert_raises_api_error Api_errors.vm_requires_vgpu (fun () ->
+      assert_raises_api_error Api_errors.vgpu_type_not_enabled (fun () ->
           assert_gpus_available ~__context ~self:vm ~host:h'
       )
   )
 
-let test_gpus_available_fails_no_capacity () =
+(* A PGPU passed through whole to another VM refuses because its running type
+   is not compatible, and that, not "no PGPU available", is what is reported. *)
+let test_gpus_available_fails_passed_through () =
   on_pool_of_k1s (fun __context _ h' _ ->
       let group = List.hd (Db.GPU_group.get_all ~__context) in
       let pgpus = Db.GPU_group.get_PGPUs ~__context ~self:group in
@@ -104,10 +106,95 @@ let test_gpus_available_fails_no_capacity () =
         )
         pgpus ;
       let vm = make_vm_with_vgpu_in_group ~__context VGPU_T.k100 group in
+      assert_raises_api_error
+        Api_errors.vgpu_type_not_compatible_with_running_type (fun () ->
+          assert_gpus_available ~__context ~self:vm ~host:h'
+      )
+  )
+
+(* The single element of [l]; fails the test otherwise. *)
+let the what = function
+  | [x] ->
+      x
+  | l ->
+      Alcotest.failf "expected exactly one %s, found %d" what (List.length l)
+
+(* Make VGPUs of [vgpu_type] resident on [pgpu] until it has no room left. *)
+let fill_pgpu ~__context pgpu vgpu_type =
+  let type_ref = Xapi_vgpu_type.find_or_create ~__context vgpu_type in
+  let remaining () =
+    Xapi_pgpu_helpers.get_remaining_capacity ~__context ~self:pgpu
+      ~vgpu_type:type_ref ~pre_allocate_list:[]
+  in
+  let rec fill n =
+    if n > 64 then Alcotest.fail "fill_pgpu: the PGPU never filled up" ;
+    if remaining () > 0L then (
+      ignore (VGPU_T.make_vgpu ~__context ~resident_on:pgpu vgpu_type) ;
+      fill (n + 1)
+    )
+  in
+  fill 0
+
+(* Every PGPU merely full: the generic error is the accurate one, and stays. *)
+let test_gpus_available_fails_no_capacity () =
+  on_pool_of_k1s (fun __context _ h' _ ->
+      let group = the "GPU group" (Db.GPU_group.get_all ~__context) in
+      let pgpus = Db.GPU_group.get_PGPUs ~__context ~self:group in
+      List.iter (fun p -> fill_pgpu ~__context p VGPU_T.k100) pgpus ;
+      let vm = make_vm_with_vgpu_in_group ~__context VGPU_T.k100 group in
       assert_raises_api_error Api_errors.vm_requires_vgpu (fun () ->
           assert_gpus_available ~__context ~self:vm ~host:h'
       )
   )
+
+(* The only PGPU runs another type. The type conflict is reported, not
+   VM_REQUIRES_VGPU, and the capacity read still says 0. *)
+let test_gpus_available_fails_type_conflict () =
+  on_pool_of_k1s (fun __context _ h' _ ->
+      let group = the "GPU group" (Db.GPU_group.get_all ~__context) in
+      let pgpu = the "PGPU on h'" (Db.Host.get_PGPUs ~__context ~self:h') in
+      ignore (VGPU_T.make_vgpu ~__context ~resident_on:pgpu VGPU_T.k140q) ;
+      let vm = make_vm_with_vgpu_in_group ~__context VGPU_T.k100 group in
+      assert_raises_api_error
+        Api_errors.vgpu_type_not_compatible_with_running_type (fun () ->
+          assert_gpus_available ~__context ~self:vm ~host:h'
+      ) ;
+      Alcotest.(check int64)
+        "a refusing PGPU still reports no capacity" 0L
+        (Xapi_pgpu_helpers.get_remaining_capacity ~__context ~self:pgpu
+           ~vgpu_type:(Xapi_vgpu_type.find_or_create ~__context VGPU_T.k100)
+           ~pre_allocate_list:[]
+        )
+  )
+
+(* One PGPU full, the other running another type: the type conflict wins,
+   whichever PGPU is which. *)
+let test_gpus_available_full_and_type_conflict () =
+  List.iter
+    (fun swap ->
+      on_pool_of_k1s (fun __context _ _ h'' ->
+          let group = the "GPU group" (Db.GPU_group.get_all ~__context) in
+          let full, conflicting =
+            match Db.Host.get_PGPUs ~__context ~self:h'' with
+            | [a; b] ->
+                if swap then
+                  (b, a)
+                else
+                  (a, b)
+            | _ ->
+                Alcotest.fail "expected two PGPUs on h''"
+          in
+          fill_pgpu ~__context full VGPU_T.k100 ;
+          ignore
+            (VGPU_T.make_vgpu ~__context ~resident_on:conflicting VGPU_T.k140q) ;
+          let vm = make_vm_with_vgpu_in_group ~__context VGPU_T.k100 group in
+          assert_raises_api_error
+            Api_errors.vgpu_type_not_compatible_with_running_type (fun () ->
+              assert_gpus_available ~__context ~self:vm ~host:h''
+          )
+      )
+    )
+    [false; true]
 
 (*--- Xapi_vm_helpers.group_hosts_by_best_pgpu ---*)
 let assert_list_is_set l =
@@ -1080,6 +1167,18 @@ let test =
   ; ( "test_gpus_available_fails_no_capacity"
     , `Quick
     , test_gpus_available_fails_no_capacity
+    )
+  ; ( "test_gpus_available_fails_passed_through"
+    , `Quick
+    , test_gpus_available_fails_passed_through
+    )
+  ; ( "test_gpus_available_fails_type_conflict"
+    , `Quick
+    , test_gpus_available_fails_type_conflict
+    )
+  ; ( "test_gpus_available_full_and_type_conflict"
+    , `Quick
+    , test_gpus_available_full_and_type_conflict
     )
   ; ("test_group_hosts_bf", `Quick, test_group_hosts_bf)
   ; ("test_group_hosts_df", `Quick, test_group_hosts_df)
