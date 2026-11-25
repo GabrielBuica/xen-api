@@ -45,4 +45,26 @@ val to_api_error : t -> exn
     [e]. *)
 
 val to_string : t -> string
-(** A one-line description for logs. *)
+(** A one-line description for logs. It begins with the API error code the
+    refusal is reported as, so that the log can be searched for the code. *)
+
+val rank : t -> int
+(** How useful a refusal is to an operator when it is the one reported; the
+    higher, the more useful. Several PGPUs can each refuse a VGPU for a
+    different reason, and only one reason can be reported. The ranking
+    prefers the reason the operator can act on to a state of the world:
+
+    - [Type_incompatible_with_running]: the PGPU could host the type but is
+      running another one; stop or move those VGPUs.
+    - [Type_not_enabled]: the PGPU supports the type; enable it.
+    - [Type_not_supported]: the PGPU cannot host the type at all.
+    - [Insufficient_capacity]: the PGPU is full. Least specific: it is what
+      the generic "no PGPU in the group could host it" error already says.
+    - [Group_contains_no_pgpus]: not a PGPU's reason; never competes with
+      one in practice.
+    - [Unexpected]: lowest, so an internal failure on one PGPU never hides
+      a real reason from another. *)
+
+val best_refusal : t list -> t option
+(** The refusal to report out of several: the highest {!rank}, and on a tie
+    the earliest in the list. [None] for the empty list. *)

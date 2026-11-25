@@ -91,6 +91,135 @@ let is_declared code = List.mem code declared
 
 let describe = Printf.sprintf
 
+(* The order best_refusal must report in, written out by hand rather than
+   read from rank: the most useful first. The match is exhaustive, so a new
+   constructor does not compile until it is given a place here. *)
+let expected_position = function
+  | Type_incompatible_with_running _ ->
+      0
+  | Type_not_enabled _ ->
+      1
+  | Type_not_supported _ ->
+      2
+  | Insufficient_capacity _ ->
+      3
+  | Group_contains_no_pgpus _ ->
+      4
+  | Unexpected _ ->
+      5
+
+(* One reason of each kind, most useful first. *)
+let one_of_each =
+  [
+    ( "Type_incompatible_with_running"
+    , Type_incompatible_with_running {pgpu; vgpu_type; running= other_type}
+    )
+  ; ("Type_not_enabled", Type_not_enabled {vgpu_type; enabled= [other_type]})
+  ; ( "Type_not_supported"
+    , Type_not_supported {vgpu_type; supported= [other_type]}
+    )
+  ; ("Insufficient_capacity", Insufficient_capacity {pgpu; vgpu_type})
+  ; ("Group_contains_no_pgpus", Group_contains_no_pgpus {gpu_group})
+  ; ("Unexpected", Unexpected Probe)
+  ]
+
+let name_of_best = function
+  | None ->
+      "nothing"
+  | Some r -> (
+    match List.find_opt (fun (_, r') -> r' = r) one_of_each with
+    | Some (name, _) ->
+        name
+    | None ->
+        to_string r
+  )
+
+let picks expected rs =
+  match best_refusal rs with Some r -> r = expected | None -> false
+
+let best_refusal_checks =
+  let pairs =
+    List.concat_map
+      (fun (i, (better_name, better)) ->
+        List.filteri (fun j _ -> j > i) one_of_each
+        |> List.concat_map (fun (worse_name, worse) ->
+            [
+              ( describe "[%s; %s] reports %s, not %s" better_name worse_name
+                  better_name
+                  (name_of_best (best_refusal [better; worse]))
+              , picks better [better; worse]
+              )
+            ; ( describe "[%s; %s] reports %s, not %s" worse_name better_name
+                  better_name
+                  (name_of_best (best_refusal [worse; better]))
+              , picks better [worse; better]
+              )
+            ]
+        )
+      )
+      (List.mapi (fun i x -> (i, x)) one_of_each)
+  in
+  let full = Insufficient_capacity {pgpu; vgpu_type} in
+  let conflict =
+    Type_incompatible_with_running
+      {pgpu= gpu_group; vgpu_type; running= other_type}
+  in
+  let conflict' =
+    Type_incompatible_with_running {pgpu; vgpu_type; running= other_type}
+  in
+  List.concat
+    [
+      [
+        ( "the hand-written order lists every constructor once, in order"
+        , List.mapi (fun i (_, r) -> expected_position r = i) one_of_each
+          |> List.for_all Fun.id
+        )
+      ; ( describe "rank orders the reasons as written out here"
+        , List.for_all
+            (fun (_, a) ->
+              List.for_all
+                (fun (_, b) ->
+                  compare (rank a) (rank b)
+                  = compare (expected_position b) (expected_position a)
+                )
+                one_of_each
+            )
+            one_of_each
+        )
+      ; ("an empty list has no best refusal", best_refusal [] = None)
+      ; ( describe
+            "one PGPU full and another running a different type reports the \
+             type conflict, not %s"
+            (name_of_best (best_refusal [full; conflict]))
+        , picks conflict [full; conflict]
+        )
+      ; ( "a tie goes to the first in the list"
+        , picks conflict [conflict; conflict']
+          && picks conflict' [conflict'; conflict]
+        )
+      ; ( "a tie behind a better reason still loses to it"
+        , picks conflict [full; full; conflict]
+        )
+      ; ( "a second Unexpected does not displace the first"
+        , let a = Unexpected Probe and b = Unexpected Division_by_zero in
+          picks a [a; b]
+        )
+      ]
+    ; List.map
+        (fun (name, r) ->
+          (describe "[%s] alone reports itself" name, picks r [r])
+        )
+        one_of_each
+    ; pairs
+    ; golden
+      |> List.map (fun (name, reason, code, _) ->
+          ( describe "%s's to_string starts with %s, so the log can be grepped"
+              name code
+          , String.starts_with ~prefix:(code ^ ": ") (to_string reason)
+          )
+      )
+    ]
+
 let checks =
   List.concat
     [
@@ -152,6 +281,7 @@ let checks =
           , String.length (to_string (Unexpected e)) > 0
           )
       )
+    ; best_refusal_checks
     ; [
         ( describe "the %d golden reasons have %d distinct to_string renderings"
             (List.length golden)
@@ -185,9 +315,9 @@ let () =
       (List.length golden) (List.length declared) ;
     exit 2
   ) ;
-  if List.length checks < 45 then (
+  if List.length checks < 95 then (
     Printf.eprintf
-      "VACUOUS: ran %d checks, expected at least 45 -- this verified less than \
+      "VACUOUS: ran %d checks, expected at least 95 -- this verified less than \
        it should have\n"
       (List.length checks) ;
     exit 2

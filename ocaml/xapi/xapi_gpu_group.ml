@@ -12,6 +12,8 @@
  * GNU Lesser General Public License for more details.
  *)
 
+module D = Debug.Make (struct let name = "xapi_gpu_group" end)
+
 let create ~__context ~name_label ~name_description ~other_config =
   let group = Ref.make () in
   let uuid = Uuidx.to_string (Uuidx.make ()) in
@@ -120,31 +122,13 @@ let get_remaining_capacity_internal ~__context ~self ~vgpu_type =
      	 * capacity. If there is not then we will have an exception for each PGPU,
      	 * explaining why it cannot run a VGPU of this type. We need to look through
      	 * this list of exceptions and pick one to raise as the "overall" error. *)
-  let choose_refusal = function
-    | [] ->
+  let choose_refusal refusals =
+    match Vgpu_refusal.best_refusal refusals with
+    | Some r ->
+        r
+    | None ->
         (* Should only ever get here if there are no PGPUs in the GPU group. *)
         Vgpu_refusal.Group_contains_no_pgpus {gpu_group= Ref.string_of self}
-    | refusals ->
-        let error_code_scores =
-          [
-            (Api_errors.pgpu_insufficient_capacity_for_vgpu, 10)
-          ; (Api_errors.vgpu_type_not_compatible_with_running_type, 8)
-          ; (Api_errors.vgpu_type_not_enabled, 6)
-          ; (Api_errors.vgpu_type_not_supported, 4)
-          ]
-        in
-        let score_exception = function
-          | Api_errors.Server_error (code, _) ->
-              if List.mem_assoc code error_code_scores then
-                List.assoc code error_code_scores
-              else
-                0
-          | _ ->
-              0
-        in
-        let score_refusal r = score_exception (Vgpu_refusal.to_api_error r) in
-        List.hd
-          (Helpers.sort_by_schwarzian ~descending:true score_refusal refusals)
   in
   (* For each PGPU in the group, if it is unable to run the specified VGPU type,
      	 * save the refusal returned. Otherwise just add its capacity
@@ -167,11 +151,13 @@ let get_remaining_capacity_internal ~__context ~self ~vgpu_type =
   if capacity > 0L then
     Ok capacity
   else
-    Error (choose_refusal refusals)
+    Error (choose_refusal (List.rev refusals))
 
 let get_remaining_capacity ~__context ~self ~vgpu_type =
   match get_remaining_capacity_internal ~__context ~self ~vgpu_type with
-  | Error _ ->
+  | Error r ->
+      D.debug "GPU group %s has no capacity for VGPU type %s: %s"
+        (Ref.string_of self) (Ref.string_of vgpu_type) (Vgpu_refusal.to_string r) ;
       0L
   | Ok capacity ->
       capacity

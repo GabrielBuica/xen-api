@@ -71,5 +71,59 @@ let test_supported_enabled_types () =
   Alcotest.(check (list (Alcotest_comparators.ref ())))
     "GPU group still has enabled types after GC" [] group_enabled_types
 
+(* One PGPU full of K100s, the other running a K140Q: the group reports the
+   type conflict, not "insufficient capacity", whichever PGPU comes first. The
+   old scored table ranked capacity above the conflict. *)
+let test_remaining_capacity_reports_type_conflict () =
+  List.iter
+    (fun swap ->
+      let __context = Test_common.make_test_database () in
+      let host = Helpers.get_localhost ~__context in
+      let gPU_group = Test_common.make_gpu_group ~__context () in
+      let a = make_pgpu ~__context ~host ~gPU_group default_k1 in
+      let b = make_pgpu ~__context ~host ~gPU_group default_k1 in
+      let full, conflicting =
+        if swap then
+          (b, a)
+        else
+          (a, b)
+      in
+      let k100 = Xapi_vgpu_type.find_or_create ~__context k100 in
+      let rec fill n =
+        if n > 64 then Alcotest.fail "the PGPU never filled up" ;
+        if
+          Xapi_pgpu_helpers.get_remaining_capacity ~__context ~self:full
+            ~vgpu_type:k100 ~pre_allocate_list:[]
+          > 0L
+        then (
+          ignore (make_vgpu ~__context ~resident_on:full Test_vgpu_common.k100) ;
+          fill (n + 1)
+        )
+      in
+      fill 0 ;
+      ignore (make_vgpu ~__context ~resident_on:conflicting k140q) ;
+      match
+        Xapi_gpu_group.get_remaining_capacity_internal ~__context
+          ~self:gPU_group ~vgpu_type:k100
+      with
+      | Error (Vgpu_refusal.Type_incompatible_with_running {pgpu; _}) ->
+          Alcotest.(check string)
+            "the conflict reported is the conflicting PGPU's"
+            (Ref.string_of conflicting)
+            pgpu
+      | Error r ->
+          Alcotest.fail
+            ("expected the type conflict, got " ^ Vgpu_refusal.to_string r)
+      | Ok n ->
+          Alcotest.failf "expected a refusal, got capacity %Ld" n
+    )
+    [false; true]
+
 let test =
-  [("test_supported_enabled_types", `Quick, test_supported_enabled_types)]
+  [
+    ("test_supported_enabled_types", `Quick, test_supported_enabled_types)
+  ; ( "test_remaining_capacity_reports_type_conflict"
+    , `Quick
+    , test_remaining_capacity_reports_type_conflict
+    )
+  ]

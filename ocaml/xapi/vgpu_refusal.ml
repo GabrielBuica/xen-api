@@ -51,7 +51,7 @@ let to_api_error = function
   | Unexpected e ->
       e
 
-let to_string = function
+let describe = function
   | Type_not_supported {vgpu_type; supported} ->
       Printf.sprintf "type %s is not supported by this PGPU (supported: %s)"
         vgpu_type
@@ -73,3 +73,48 @@ let to_string = function
   | Unexpected e ->
       Printf.sprintf "unexpected failure while deciding: %s"
         (Printexc.to_string e)
+
+let to_string r =
+  match to_api_error r with
+  | Api_errors.Server_error (code, _) ->
+      Printf.sprintf "%s: %s" code (describe r)
+  | _ ->
+      describe r
+
+(* The order used to be the reverse for the type reasons: "insufficient
+   capacity" scored highest, so a PGPU that was merely full hid another
+   PGPU's type conflict, and the operator was sent to look for capacity.
+   The rationale for each slot is in the .mli.
+
+   A refusal for a type whose definition is not available belongs
+   between Type_not_supported and Insufficient_capacity: the operator can fix
+   it by supplying or importing the manifest, so it beats "full", but it says
+   less about the PGPU than a type the PGPU explicitly does not support. *)
+let rank = function
+  | Type_incompatible_with_running _ ->
+      5
+  | Type_not_enabled _ ->
+      4
+  | Type_not_supported _ ->
+      3
+  | Insufficient_capacity _ ->
+      2
+  | Group_contains_no_pgpus _ ->
+      1
+  | Unexpected _ ->
+      0
+
+let best_refusal = function
+  | [] ->
+      None
+  | first :: rest ->
+      Some
+        (List.fold_left
+           (fun best r ->
+             if rank r > rank best then
+               r
+             else
+               best
+           )
+           first rest
+        )
